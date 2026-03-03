@@ -294,12 +294,14 @@ const styles = StyleSheet.create({
   },
   pillRow: {
     paddingHorizontal: spacing.md,
+    paddingTop: spacing.xs,
     paddingBottom: spacing.md,
     gap: spacing.sm,
+    alignItems: 'center',
   },
   pill: {
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
+    paddingVertical: 10,
     borderRadius: radius.full,
     backgroundColor: colors.bgCard,
     borderWidth: 1,
@@ -311,7 +313,7 @@ const styles = StyleSheet.create({
   },
   pillText: {
     fontFamily: 'Barlow_600SemiBold',
-    fontSize: fontSize.sm,
+    fontSize: fontSize.md,
     color: colors.textMuted,
   },
   pillTextActive: {
