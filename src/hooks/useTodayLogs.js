@@ -28,7 +28,14 @@ export function useTodayLogs(date) {
 
       supabase
         .from('workouts')
-        .select('*')
+        .select(`
+          id, started_at,
+          workout_exercises (
+            id, order_index,
+            exercises ( name ),
+            workout_sets ( set_number, weight_kg, reps )
+          )
+        `)
         .eq('user_id', user.id)
         .gte('started_at', `${targetDate}T00:00:00`)
         .lte('started_at', `${targetDate}T23:59:59`)

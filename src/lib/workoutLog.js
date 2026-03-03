@@ -1,42 +1,80 @@
 import { supabase } from './supabase'
 
+const LBS_TO_KG = 0.453592
+
 /**
- * Create a new workout record and return its id.
- * Call this when the user taps "Finish Workout".
+ * Find an exercise by name, or create a custom one if it doesn't exist.
+ * Returns the exercise UUID.
+ */
+async function getOrCreateExercise(name, muscleGroup, userId) {
+  const { data: existing } = await supabase
+    .from('exercises')
+    .select('id')
+    .eq('name', name)
+    .maybeSingle()
+
+  if (existing) return existing.id
+
+  const { data: created, error } = await supabase
+    .from('exercises')
+    .insert({
+      name,
+      is_custom: true,
+      created_by: userId,
+    })
+    .select('id')
+    .single()
+
+  if (error) throw error
+  return created.id
+}
+
+/**
+ * Save a completed workout.
+ * Chain: workouts → workout_exercises → workout_sets
  */
 export async function saveWorkout({ userId, startedAt, exercises }) {
   // 1. Insert workout header
   const { data: workout, error: workoutError } = await supabase
     .from('workouts')
-    .insert({
-      user_id: userId,
-      started_at: startedAt,
-    })
+    .insert({ user_id: userId, started_at: startedAt })
     .select('id')
     .single()
 
   if (workoutError) throw workoutError
 
-  // 2. Build flat set rows
-  const setRows = []
-  exercises.forEach((ex) => {
-    ex.sets.forEach((set, idx) => {
-      if (set.weight !== '' && set.reps !== '') {
-        setRows.push({
-          workout_id: workout.id,
-          exercise_name: ex.name,
-          muscle_group: ex.muscleGroup,
-          set_number: idx + 1,
-          weight_lbs: parseFloat(set.weight),
-          reps: parseInt(set.reps, 10),
-        })
-      }
-    })
-  })
+  // 2. For each exercise: get/create exercise record → insert workout_exercise → insert sets
+  for (let i = 0; i < exercises.length; i++) {
+    const ex = exercises[i]
 
-  if (setRows.length > 0) {
-    const { error: setsError } = await supabase.from('workout_sets').insert(setRows)
-    if (setsError) throw setsError
+    const exerciseId = await getOrCreateExercise(ex.name, ex.muscleGroup, userId)
+
+    const { data: workoutExercise, error: weError } = await supabase
+      .from('workout_exercises')
+      .insert({
+        workout_id: workout.id,
+        exercise_id: exerciseId,
+        order_index: i,
+      })
+      .select('id')
+      .single()
+
+    if (weError) throw weError
+
+    const setRows = ex.sets
+      .filter((s) => s.weight !== '' && s.reps !== '')
+      .map((s, idx) => ({
+        workout_exercise_id: workoutExercise.id,
+        set_number: idx + 1,
+        weight_kg: parseFloat(s.weight) * LBS_TO_KG,
+        reps: parseInt(s.reps, 10),
+        completed: true,
+      }))
+
+    if (setRows.length > 0) {
+      const { error: setsError } = await supabase.from('workout_sets').insert(setRows)
+      if (setsError) throw setsError
+    }
   }
 
   return workout.id

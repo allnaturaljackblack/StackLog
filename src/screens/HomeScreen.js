@@ -9,6 +9,37 @@ import { colors, spacing, radius, fontSize } from '../utils/theme'
 import { supabase } from '../lib/supabase'
 import { logWater } from '../lib/waterLog'
 
+// ---------------------------------------------------------------------------
+// Workout helpers
+// ---------------------------------------------------------------------------
+function getWorkoutTimeLabel(startedAt) {
+  const h = new Date(startedAt).getHours()
+  if (h < 12) return 'MORNING'
+  if (h < 17) return 'AFTERNOON'
+  return 'EVENING'
+}
+
+function getWorkoutTimeStr(startedAt) {
+  return new Date(startedAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
+}
+
+function formatSetSummary(sets) {
+  if (!sets || !sets.length) return ''
+  const sorted = [...sets].sort((a, b) => a.set_number - b.set_number)
+  const reps = sorted.map(s => s.reps)
+  const weightLbs = sorted.map(s => Math.round(s.weight_kg * 2.205))
+  const sameWeight = weightLbs.every(w => w === weightLbs[0])
+  const sameReps = reps.every(r => r === reps[0])
+
+  if (sameWeight && sameReps) {
+    return `${sorted.length} × ${reps[0]}${weightLbs[0] ? ` @ ${weightLbs[0]} lbs` : ''}`
+  }
+  if (sameWeight) {
+    return `${reps.join(', ')}${weightLbs[0] ? ` @ ${weightLbs[0]} lbs` : ''}`
+  }
+  return `${sorted.length} set${sorted.length !== 1 ? 's' : ''}`
+}
+
 function ProgressBar({ value, max, color, height = 5 }) {
   const pct = Math.min(value / (max || 1), 1)
   return (
@@ -295,27 +326,60 @@ export default function HomeScreen({ navigation }) {
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>{isToday ? "Today's Activity" : 'Activity'}</Text>
-          <TouchableOpacity>
+          <TouchableOpacity onPress={() => navigation.navigate('WorkoutLog')}>
             <Text style={styles.sectionAction}>+ Log</Text>
           </TouchableOpacity>
         </View>
         {workouts.length > 0 ? (
-          workouts.map(w => (
-            <View key={w.id} style={styles.workoutCard}>
-              <View style={styles.workoutLeft}>
-                <Text style={styles.workoutTitle}>{w.title || 'Workout'}</Text>
-                <Text style={styles.workoutMeta}>
-                  {w.duration_minutes ? `${w.duration_minutes} min` : ''}
-                  {w.total_volume_kg ? ` · ${Math.round(w.total_volume_kg * 2.205).toLocaleString()} lbs` : ''}
-                </Text>
-              </View>
-              <Text style={styles.workoutEmoji}>💪</Text>
-            </View>
-          ))
+          <View style={styles.workoutList}>
+            {workouts.map(w => {
+              const exercises = [...(w.workout_exercises || [])]
+                .sort((a, b) => a.order_index - b.order_index)
+                .filter(we => we.exercises?.name)
+              const visible = exercises.slice(0, 5)
+              const overflow = exercises.length - visible.length
+              return (
+                <View key={w.id} style={styles.workoutCard}>
+                  {/* Card header */}
+                  <View style={styles.workoutCardHeader}>
+                    <Text style={styles.workoutCardLabel}>
+                      {getWorkoutTimeLabel(w.started_at)}
+                    </Text>
+                    <Text style={styles.workoutCardTime}>
+                      {getWorkoutTimeStr(w.started_at)}
+                    </Text>
+                  </View>
+
+                  {/* Exercise rows */}
+                  {visible.length > 0 && (
+                    <>
+                      <View style={styles.workoutDivider} />
+                      {visible.map((we, i) => (
+                        <View key={i} style={styles.workoutExRow}>
+                          <Text style={styles.workoutExName} numberOfLines={1}>
+                            {we.exercises.name}
+                          </Text>
+                          <Text style={styles.workoutExSets}>
+                            {formatSetSummary(we.workout_sets)}
+                          </Text>
+                        </View>
+                      ))}
+                      {overflow > 0 && (
+                        <Text style={styles.workoutExOverflow}>+{overflow} more</Text>
+                      )}
+                    </>
+                  )}
+                </View>
+              )
+            })}
+          </View>
         ) : (
           <View style={styles.emptyWorkout}>
             <Text style={styles.emptyWorkoutText}>No workouts logged yet</Text>
-            <TouchableOpacity style={styles.emptyWorkoutBtn}>
+            <TouchableOpacity
+              style={styles.emptyWorkoutBtn}
+              onPress={() => navigation.navigate('WorkoutLog')}
+            >
               <Text style={styles.emptyWorkoutBtnText}>LOG A WORKOUT</Text>
             </TouchableOpacity>
           </View>
@@ -404,11 +468,16 @@ const styles = StyleSheet.create({
   checkText: { color: '#fff', fontSize: 11 },
   checkEmpty: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: colors.border },
 
-  workoutCard: { backgroundColor: colors.bgCard, borderRadius: radius.lg, padding: spacing.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderLeftWidth: 4, borderLeftColor: colors.accentRed },
-  workoutLeft: { flex: 1 },
-  workoutTitle: { fontFamily: 'BarlowCondensed_800ExtraBold', fontSize: 18, color: colors.text, letterSpacing: -0.3 },
-  workoutMeta: { fontFamily: 'Barlow_400Regular', fontSize: fontSize.sm, color: colors.textMuted, marginTop: 2 },
-  workoutEmoji: { fontSize: 28 },
+  workoutList: { gap: spacing.sm },
+  workoutCard: { backgroundColor: colors.bgDark, borderRadius: radius.lg, padding: spacing.md },
+  workoutCardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  workoutCardLabel: { fontFamily: 'BarlowCondensed_800ExtraBold', fontSize: fontSize.md, color: colors.textLight, letterSpacing: 1 },
+  workoutCardTime: { fontFamily: 'Barlow_400Regular', fontSize: fontSize.sm, color: 'rgba(255,255,255,0.4)' },
+  workoutDivider: { height: 1, backgroundColor: 'rgba(255,255,255,0.08)', marginVertical: spacing.sm },
+  workoutExRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 4 },
+  workoutExName: { fontFamily: 'Barlow_500Medium', fontSize: fontSize.sm, color: colors.textLight, flex: 1, marginRight: spacing.sm },
+  workoutExSets: { fontFamily: 'BarlowCondensed_700Bold', fontSize: fontSize.sm, color: colors.accentRed },
+  workoutExOverflow: { fontFamily: 'Barlow_400Regular', fontSize: fontSize.sm, color: 'rgba(255,255,255,0.35)', marginTop: 4 },
   emptyWorkout: { backgroundColor: colors.bgCard, borderRadius: radius.lg, padding: spacing.lg, alignItems: 'center', gap: spacing.sm },
   emptyWorkoutText: { fontFamily: 'Barlow_400Regular', fontSize: fontSize.sm, color: colors.textMuted },
   emptyWorkoutBtn: { backgroundColor: colors.bgDark, borderRadius: radius.md, paddingHorizontal: spacing.lg, paddingVertical: spacing.sm },
