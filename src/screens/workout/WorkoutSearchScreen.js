@@ -4,6 +4,7 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
+  ScrollView,
   FlatList,
   StyleSheet,
   SafeAreaView,
@@ -192,14 +193,14 @@ export default function WorkoutSearchScreen({ navigation, route }) {
       </View>
 
       {/* Muscle group pills */}
-      <FlatList
-        data={MUSCLE_GROUPS}
-        keyExtractor={(item) => item}
+      <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.pillRow}
-        renderItem={({ item }) => (
+      >
+        {MUSCLE_GROUPS.map(item => (
           <TouchableOpacity
+            key={item}
             style={[styles.pill, activeGroup === item && styles.pillActive]}
             onPress={() => setActiveGroup(item)}
           >
@@ -207,8 +208,8 @@ export default function WorkoutSearchScreen({ navigation, route }) {
               {item}
             </Text>
           </TouchableOpacity>
-        )}
-      />
+        ))}
+      </ScrollView>
 
       {/* Exercise sections */}
       <SectionList
