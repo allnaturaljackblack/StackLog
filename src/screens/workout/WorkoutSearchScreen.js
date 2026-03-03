@@ -297,7 +297,6 @@ const styles = StyleSheet.create({
     paddingTop: spacing.xs,
     paddingBottom: spacing.md,
     gap: spacing.sm,
-    alignItems: 'center',
   },
   pill: {
     paddingHorizontal: spacing.md,
