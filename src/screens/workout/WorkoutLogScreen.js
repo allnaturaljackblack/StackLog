@@ -10,10 +10,13 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  Dimensions,
 } from 'react-native'
 import { colors, spacing, radius, fontSize } from '../../utils/theme'
 import { supabase } from '../../lib/supabase'
 import { saveWorkout } from '../../lib/workoutLog'
+
+const { height: SCREEN_HEIGHT } = Dimensions.get('window')
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -68,6 +71,60 @@ const DARK_CARD = '#1C1C1E'
 const SS_RED = colors.accentRed
 
 // ---------------------------------------------------------------------------
+// Session summary panel (sticky bottom)
+// ---------------------------------------------------------------------------
+function SessionSummary({ exercises, open, onToggle }) {
+  const loggedExercises = exercises.filter((ex) =>
+    ex.sets.some((s) => s.weight !== '' && s.reps !== '')
+  )
+  const totalSets = loggedExercises.reduce(
+    (sum, ex) => sum + ex.sets.filter((s) => s.weight !== '' && s.reps !== '').length,
+    0
+  )
+
+  return (
+    <View style={summaryStyles.container}>
+      <TouchableOpacity style={summaryStyles.bar} onPress={onToggle} activeOpacity={0.8}>
+        <Text style={summaryStyles.barText}>
+          {'💪 '}
+          <Text style={summaryStyles.barCount}>{loggedExercises.length}</Text>
+          {` exercise${loggedExercises.length !== 1 ? 's' : ''} · `}
+          <Text style={summaryStyles.barCount}>{totalSets}</Text>
+          {` set${totalSets !== 1 ? 's' : ''} logged`}
+        </Text>
+        <Text style={summaryStyles.barChevron}>{open ? '▼' : '▲'}</Text>
+      </TouchableOpacity>
+
+      {open && (
+        <ScrollView
+          style={summaryStyles.sheet}
+          contentContainerStyle={summaryStyles.sheetContent}
+          keyboardShouldPersistTaps="handled"
+        >
+          {loggedExercises.length === 0 ? (
+            <Text style={summaryStyles.emptyText}>No sets logged yet</Text>
+          ) : (
+            loggedExercises.map((ex) => {
+              const doneSets = ex.sets.filter((s) => s.weight !== '' && s.reps !== '')
+              return (
+                <View key={ex.id} style={summaryStyles.exBlock}>
+                  <Text style={summaryStyles.exName}>{ex.name}</Text>
+                  {doneSets.map((s, i) => (
+                    <Text key={s.id} style={summaryStyles.setLine}>
+                      {`${i + 1}  ·  ${s.weight} lbs × ${s.reps}`}
+                    </Text>
+                  ))}
+                </View>
+              )
+            })
+          )}
+        </ScrollView>
+      )}
+    </View>
+  )
+}
+
+// ---------------------------------------------------------------------------
 // Set row
 // ---------------------------------------------------------------------------
 function SetRow({ setIndex, set, onChangeWeight, onChangeReps, onDelete, showDelete }) {
@@ -117,10 +174,26 @@ function ExerciseCard({
   onUpdateSet,
   onDeleteSet,
   onRemoveExercise,
+  onQuickFill,
   onAddSuperset,   // present only on solo cards
   topRadius = true,
   bottomRadius = true,
 }) {
+  const [qSets, setQSets] = useState('')
+  const [qReps, setQReps] = useState('')
+  const [qWeight, setQWeight] = useState('')
+
+  function handleApply() {
+    const numSets = parseInt(qSets, 10)
+    const reps = qReps.trim()
+    const weight = qWeight.trim()
+    if (!numSets || numSets < 1 || !reps || !weight) return
+    onQuickFill(numSets, reps, weight)
+    setQSets('')
+    setQReps('')
+    setQWeight('')
+  }
+
   return (
     <View
       style={[
@@ -139,6 +212,53 @@ function ExerciseCard({
         </View>
         <TouchableOpacity onPress={onRemoveExercise} style={styles.removeExerciseBtn}>
           <Text style={styles.removeExerciseIcon}>🗑</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Quick-fill row */}
+      <View style={styles.quickFillRow}>
+        <TextInput
+          style={styles.qfInput}
+          value={qSets}
+          onChangeText={setQSets}
+          placeholder="sets"
+          placeholderTextColor="rgba(255,255,255,0.25)"
+          keyboardType="number-pad"
+          returnKeyType="next"
+          selectTextOnFocus
+        />
+        <Text style={styles.qfSep}>×</Text>
+        <TextInput
+          style={styles.qfInput}
+          value={qReps}
+          onChangeText={setQReps}
+          placeholder="reps"
+          placeholderTextColor="rgba(255,255,255,0.25)"
+          keyboardType="number-pad"
+          returnKeyType="next"
+          selectTextOnFocus
+        />
+        <Text style={styles.qfSep}>@</Text>
+        <TextInput
+          style={[styles.qfInput, { flex: 1.4 }]}
+          value={qWeight}
+          onChangeText={setQWeight}
+          placeholder="lbs"
+          placeholderTextColor="rgba(255,255,255,0.25)"
+          keyboardType="decimal-pad"
+          returnKeyType="done"
+          onSubmitEditing={handleApply}
+          selectTextOnFocus
+        />
+        <TouchableOpacity
+          style={[
+            styles.qfApplyBtn,
+            (!qSets || !qReps || !qWeight) && styles.qfApplyBtnDisabled,
+          ]}
+          onPress={handleApply}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.qfApplyText}>Apply</Text>
         </TouchableOpacity>
       </View>
 
@@ -202,6 +322,7 @@ function SupersetGroup({
   onUpdateSet,
   onDeleteSet,
   onRemoveExercise,
+  onQuickFill,
   onAddToSuperset,
   onBreakSuperset,
 }) {
@@ -229,6 +350,7 @@ function SupersetGroup({
                 onUpdateSet={(setIdx, field, val) => onUpdateSet(ex.id, setIdx, field, val)}
                 onDeleteSet={(setIdx) => onDeleteSet(ex.id, setIdx)}
                 onRemoveExercise={() => onRemoveExercise(ex.id)}
+                onQuickFill={(numSets, reps, weight) => onQuickFill(ex.id, numSets, reps, weight)}
                 topRadius={idx === 0}
                 bottomRadius={idx === exercises.length - 1}
               />
@@ -254,6 +376,7 @@ export default function WorkoutLogScreen({ navigation, route }) {
   const [startedAt] = useState(new Date())
   const [elapsed, setElapsed] = useState(0)
   const [saving, setSaving] = useState(false)
+  const [summaryOpen, setSummaryOpen] = useState(false)
   const timerRef = useRef(null)
 
   // Timer
@@ -350,6 +473,20 @@ export default function WorkoutLogScreen({ navigation, route }) {
     )
   }, [])
 
+  const quickFillSets = useCallback((exId, numSets, reps, weight) => {
+    setExercises((prev) =>
+      prev.map((ex) => {
+        if (ex.id !== exId) return ex
+        const sets = Array.from({ length: numSets }, () => ({
+          weight,
+          reps,
+          id: Date.now() + Math.random(),
+        }))
+        return { ...ex, sets }
+      })
+    )
+  }, [])
+
   // ---- Save ----
 
   async function handleFinish() {
@@ -438,6 +575,7 @@ export default function WorkoutLogScreen({ navigation, route }) {
                     onUpdateSet={(setIdx, field, val) => updateSet(ex.id, setIdx, field, val)}
                     onDeleteSet={(setIdx) => deleteSet(ex.id, setIdx)}
                     onRemoveExercise={() => removeExercise(ex.id)}
+                    onQuickFill={(numSets, reps, weight) => quickFillSets(ex.id, numSets, reps, weight)}
                     onAddSuperset={() =>
                       navigation.navigate('WorkoutSearch', { supersetWithExId: ex.id })
                     }
@@ -454,6 +592,7 @@ export default function WorkoutLogScreen({ navigation, route }) {
                   onUpdateSet={updateSet}
                   onDeleteSet={deleteSet}
                   onRemoveExercise={removeExercise}
+                  onQuickFill={quickFillSets}
                   onAddToSuperset={() =>
                     navigation.navigate('WorkoutSearch', {
                       supersetWithExId: group.exercises[group.exercises.length - 1].id,
@@ -473,6 +612,13 @@ export default function WorkoutLogScreen({ navigation, route }) {
             <Text style={styles.addExerciseText}>+ Add Exercise</Text>
           </TouchableOpacity>
         </ScrollView>
+
+        {/* Session summary — docked above keyboard */}
+        <SessionSummary
+          exercises={exercises}
+          open={summaryOpen}
+          onToggle={() => setSummaryOpen((v) => !v)}
+        />
       </KeyboardAvoidingView>
     </SafeAreaView>
   )
@@ -575,6 +721,51 @@ const styles = StyleSheet.create({
   },
   removeExerciseBtn: { padding: spacing.xs },
   removeExerciseIcon: { fontSize: 16 },
+
+  // Quick-fill row
+  quickFillRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    marginBottom: spacing.sm,
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    borderRadius: radius.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+  },
+  qfInput: {
+    flex: 1,
+    height: 34,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderRadius: radius.sm,
+    paddingHorizontal: spacing.xs,
+    fontFamily: 'Barlow_600SemiBold',
+    fontSize: fontSize.sm,
+    color: colors.textLight,
+    textAlign: 'center',
+  },
+  qfSep: {
+    fontFamily: 'Barlow_700Bold',
+    fontSize: fontSize.sm,
+    color: 'rgba(255,255,255,0.3)',
+  },
+  qfApplyBtn: {
+    backgroundColor: colors.accentRed,
+    borderRadius: radius.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 6,
+  },
+  qfApplyBtnDisabled: {
+    backgroundColor: 'rgba(255,55,48,0.3)',
+  },
+  qfApplyText: {
+    fontFamily: 'BarlowCondensed_700Bold',
+    fontSize: fontSize.sm,
+    color: colors.textLight,
+    letterSpacing: -0.1,
+  },
 
   // Column labels
   colLabels: {
@@ -728,5 +919,68 @@ const styles = StyleSheet.create({
     fontSize: fontSize.lg,
     color: colors.textLight,
     letterSpacing: -0.2,
+  },
+})
+
+// ---------------------------------------------------------------------------
+// Session summary styles
+// ---------------------------------------------------------------------------
+const summaryStyles = StyleSheet.create({
+  container: {
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: colors.bgDark,
+  },
+  bar: {
+    height: 48,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.md,
+  },
+  barText: {
+    fontFamily: 'Barlow_400Regular',
+    fontSize: fontSize.sm,
+    color: 'rgba(255,255,255,0.6)',
+  },
+  barCount: {
+    fontFamily: 'BarlowCondensed_700Bold',
+    fontSize: fontSize.md,
+    color: colors.accentRed,
+  },
+  barChevron: {
+    fontSize: 11,
+    color: 'rgba(255,255,255,0.4)',
+  },
+  sheet: {
+    maxHeight: SCREEN_HEIGHT * 0.38,
+  },
+  sheetContent: {
+    paddingHorizontal: spacing.md,
+    paddingBottom: spacing.md,
+    gap: spacing.sm,
+  },
+  emptyText: {
+    fontFamily: 'Barlow_400Regular',
+    fontSize: fontSize.sm,
+    color: 'rgba(255,255,255,0.3)',
+    textAlign: 'center',
+    paddingVertical: spacing.sm,
+  },
+  exBlock: {
+    gap: 3,
+  },
+  exName: {
+    fontFamily: 'BarlowCondensed_700Bold',
+    fontSize: fontSize.md,
+    color: colors.textLight,
+    letterSpacing: -0.1,
+    marginBottom: 2,
+  },
+  setLine: {
+    fontFamily: 'Barlow_400Regular',
+    fontSize: fontSize.sm,
+    color: 'rgba(255,255,255,0.5)',
+    paddingLeft: spacing.sm,
   },
 })
