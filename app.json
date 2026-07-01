@@ -7,27 +7,55 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
+    "scheme": "stacklog",
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.stacklog.app",
+      "infoPlist": {
+        "NSHealthShareUsageDescription": "StackLog reads your workouts from Apple Health to automatically log your activity.",
+        "NSHealthUpdateUsageDescription": "StackLog writes your workouts to Apple Health to keep your fitness data in sync.",
+        "ITSAppUsesNonExemptEncryption": false
+      },
+      "entitlements": {
+        "com.apple.developer.healthkit": true
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
       "expo-font",
-      "expo-barcode-scanner"
-    ]
+      "expo-barcode-scanner",
+      "@react-native-community/datetimepicker",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "StackLog needs access to your photos to set a profile picture."
+        }
+      ],
+      "react-native-health",
+      "expo-web-browser"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "f2a646b8-ac22-4758-955a-734766ef17d5"
+      }
+    }
   }
 }
