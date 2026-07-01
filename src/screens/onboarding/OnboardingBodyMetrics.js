@@ -224,7 +224,7 @@ export default function OnboardingBodyMetrics({ navigation, route }) {
         disabled={!isValid}
         activeOpacity={0.85}
       >
-        <Text style={styles.buttonText}>CONTINUE</Text>
+        <Text style={styles.buttonText}>Continue</Text>
       </TouchableOpacity>
     </ScrollView>
   )
@@ -234,28 +234,28 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
   inner: { padding: spacing.lg, paddingTop: 60, flexGrow: 1 },
   back: { marginBottom: spacing.lg },
-  backText: { fontFamily: 'Barlow_600SemiBold', fontSize: fontSize.md, color: colors.textMuted },
-  step: { fontFamily: 'Barlow_500Medium', fontSize: fontSize.xs, color: colors.textMuted, letterSpacing: 1, textTransform: 'uppercase', marginBottom: spacing.sm },
-  title: { fontFamily: 'BarlowCondensed_900Black', fontSize: 44, color: colors.text, letterSpacing: -1, lineHeight: 48, marginBottom: spacing.sm },
-  sub: { fontFamily: 'Barlow_400Regular', fontSize: fontSize.sm, color: colors.textMuted, marginBottom: spacing.lg },
-  toggle: { flexDirection: 'row', backgroundColor: colors.bgCard, borderRadius: radius.md, padding: 4, marginBottom: spacing.lg, borderWidth: 1, borderColor: colors.border },
+  backText: { fontFamily: 'Inter_600SemiBold', fontSize: fontSize.md, color: colors.textMuted },
+  step: { fontFamily: 'Inter_500Medium', fontSize: fontSize.xs, color: colors.textMuted, letterSpacing: 1, textTransform: 'uppercase', marginBottom: spacing.sm },
+  title: { fontFamily: 'Inter_700Bold', fontSize: 44, color: colors.text, letterSpacing: -1, lineHeight: 48, marginBottom: spacing.sm },
+  sub: { fontFamily: 'Inter_400Regular', fontSize: fontSize.sm, color: colors.textMuted, marginBottom: spacing.lg },
+  toggle: { flexDirection: 'row', backgroundColor: colors.bgSecondary, borderRadius: radius.md, padding: 4, marginBottom: spacing.lg, borderWidth: 1, borderColor: colors.border },
   toggleBtn: { flex: 1, padding: spacing.sm, borderRadius: radius.sm, alignItems: 'center' },
   toggleBtnActive: { backgroundColor: colors.bgDark },
-  toggleText: { fontFamily: 'Barlow_600SemiBold', fontSize: fontSize.sm, color: colors.textMuted },
+  toggleText: { fontFamily: 'Inter_600SemiBold', fontSize: fontSize.sm, color: colors.textMuted },
   toggleTextActive: { color: colors.textLight },
   form: { gap: spacing.md, marginBottom: spacing.lg },
   inputWrapper: { gap: spacing.xs },
-  label: { fontFamily: 'Barlow_700Bold', fontSize: fontSize.xs, color: colors.textMuted, letterSpacing: 1 },
-  input: { flex: 1, backgroundColor: colors.bgCard, borderRadius: radius.md, padding: spacing.md, fontFamily: 'Barlow_400Regular', fontSize: fontSize.md, color: colors.text, borderWidth: 1, borderColor: colors.border },
+  label: { fontFamily: 'Inter_700Bold', fontSize: fontSize.xs, color: colors.textMuted, letterSpacing: 1 },
+  input: { flex: 1, backgroundColor: colors.bgSecondary, borderRadius: radius.md, padding: spacing.md, fontFamily: 'Inter_400Regular', fontSize: fontSize.md, color: colors.text, borderWidth: 1, borderColor: colors.border },
   row: { flexDirection: 'row', gap: spacing.sm },
   rowInput: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
-  inputSuffix: { fontFamily: 'Barlow_400Regular', fontSize: fontSize.sm, color: colors.textMuted },
+  inputSuffix: { fontFamily: 'Inter_400Regular', fontSize: fontSize.sm, color: colors.textMuted },
   options: { flexDirection: 'row', gap: spacing.sm },
-  optionBtn: { flex: 1, padding: spacing.sm, borderRadius: radius.md, alignItems: 'center', backgroundColor: colors.bgCard, borderWidth: 1, borderColor: colors.border },
+  optionBtn: { flex: 1, padding: spacing.sm, borderRadius: radius.md, alignItems: 'center', backgroundColor: colors.bgSecondary, borderWidth: 1, borderColor: colors.border },
   optionBtnActive: { backgroundColor: colors.bgDark, borderColor: colors.bgDark },
-  optionText: { fontFamily: 'Barlow_600SemiBold', fontSize: fontSize.sm, color: colors.textMuted },
+  optionText: { fontFamily: 'Inter_600SemiBold', fontSize: fontSize.sm, color: colors.textMuted },
   optionTextActive: { color: colors.textLight },
-  button: { backgroundColor: colors.accentRed, borderRadius: radius.md, padding: spacing.md, alignItems: 'center', marginTop: spacing.md },
+  button: { backgroundColor: colors.bgDark, borderRadius: radius.full, padding: spacing.md, alignItems: 'center', marginTop: spacing.md },
   buttonDisabled: { opacity: 0.4 },
-  buttonText: { fontFamily: 'BarlowCondensed_800ExtraBold', fontSize: fontSize.lg, color: colors.textLight, letterSpacing: 1 },
+  buttonText: { fontFamily: 'Inter_700Bold', fontSize: fontSize.lg, color: colors.textLight, letterSpacing: 1 },
 })
