@@ -108,7 +108,7 @@ export default function SignupScreen({ navigation }) {
             activeOpacity={0.85}
           >
             <Text style={styles.buttonText}>
-              {loading ? 'CREATING ACCOUNT...' : 'CREATE ACCOUNT'}
+              {loading ? 'Creating account...' : 'Create Account'}
             </Text>
           </TouchableOpacity>
         </View>
@@ -132,20 +132,20 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xl,
   },
   backText: {
-    fontFamily: 'Barlow_600SemiBold',
+    fontFamily: 'Inter_600SemiBold',
     fontSize: fontSize.md,
     color: colors.textMuted,
   },
   title: {
-    fontFamily: 'BarlowCondensed_900Black',
-    fontSize: 48,
+    fontFamily: 'Inter_700Bold',
+    fontSize: 40,
     color: colors.text,
     letterSpacing: -1,
-    lineHeight: 52,
+    lineHeight: 46,
     marginBottom: spacing.sm,
   },
   subtitle: {
-    fontFamily: 'Barlow_400Regular',
+    fontFamily: 'Inter_400Regular',
     fontSize: fontSize.md,
     color: colors.textMuted,
     marginBottom: spacing.xl,
@@ -157,29 +157,29 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   inputLabel: {
-    fontFamily: 'Barlow_700Bold',
+    fontFamily: 'Inter_600SemiBold',
     fontSize: fontSize.xs,
     color: colors.textMuted,
-    letterSpacing: 1,
+    letterSpacing: 0.8,
   },
   input: {
-    backgroundColor: colors.bgCard,
+    backgroundColor: colors.bgSecondary,
     borderRadius: radius.md,
     padding: spacing.md,
-    fontFamily: 'Barlow_400Regular',
+    fontFamily: 'Inter_400Regular',
     fontSize: fontSize.md,
     color: colors.text,
     borderWidth: 1,
     borderColor: colors.border,
   },
   inputHint: {
-    fontFamily: 'Barlow_400Regular',
+    fontFamily: 'Inter_400Regular',
     fontSize: fontSize.xs,
     color: colors.textMuted,
   },
   button: {
-    backgroundColor: colors.accentRed,
-    borderRadius: radius.md,
+    backgroundColor: colors.bgDark,
+    borderRadius: radius.full,
     padding: spacing.md,
     alignItems: 'center',
     marginTop: spacing.sm,
@@ -188,9 +188,9 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   buttonText: {
-    fontFamily: 'BarlowCondensed_800ExtraBold',
-    fontSize: fontSize.lg,
+    fontFamily: 'Inter_700Bold',
+    fontSize: fontSize.md,
     color: colors.textLight,
-    letterSpacing: 1,
+    letterSpacing: -0.2,
   },
 })

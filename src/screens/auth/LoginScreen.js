@@ -31,9 +31,9 @@ export default function LoginScreen({ navigation }) {
 
         {/* Logo / wordmark */}
         <View style={styles.header}>
-          <Text style={styles.logo}>STACK</Text>
+          <Text style={styles.logo}>Stack</Text>
           <View style={styles.logoBadge}>
-            <Text style={styles.logoAccent}>LOG</Text>
+            <Text style={styles.logoAccent}>Log</Text>
           </View>
         </View>
         <Text style={styles.tagline}>Track what you eat. Log how you train.{'\n'}Share your journey.</Text>
@@ -74,7 +74,7 @@ export default function LoginScreen({ navigation }) {
             activeOpacity={0.85}
           >
             <Text style={styles.buttonText}>
-              {loading ? 'SIGNING IN...' : 'SIGN IN'}
+              {loading ? 'Signing in...' : 'Sign In'}
             </Text>
           </TouchableOpacity>
 
@@ -110,26 +110,26 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   logo: {
-    fontFamily: 'BarlowCondensed_900Black',
-    fontSize: 48,
+    fontFamily: 'Inter_700Bold',
+    fontSize: 42,
     color: colors.text,
     letterSpacing: -1,
   },
   logoBadge: {
-    backgroundColor: colors.accentRed,
+    backgroundColor: colors.bgDark,
     borderRadius: radius.sm,
     paddingHorizontal: 10,
     paddingVertical: 4,
     marginTop: 4,
   },
   logoAccent: {
-    fontFamily: 'BarlowCondensed_900Black',
-    fontSize: 48,
+    fontFamily: 'Inter_700Bold',
+    fontSize: 42,
     color: colors.textLight,
     letterSpacing: -1,
   },
   tagline: {
-    fontFamily: 'Barlow_400Regular',
+    fontFamily: 'Inter_400Regular',
     fontSize: fontSize.md,
     color: colors.textMuted,
     lineHeight: 22,
@@ -142,24 +142,24 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   inputLabel: {
-    fontFamily: 'Barlow_700Bold',
+    fontFamily: 'Inter_600SemiBold',
     fontSize: fontSize.xs,
     color: colors.textMuted,
-    letterSpacing: 1,
+    letterSpacing: 0.8,
   },
   input: {
-    backgroundColor: colors.bgCard,
+    backgroundColor: colors.bgSecondary,
     borderRadius: radius.md,
     padding: spacing.md,
-    fontFamily: 'Barlow_400Regular',
+    fontFamily: 'Inter_400Regular',
     fontSize: fontSize.md,
     color: colors.text,
     borderWidth: 1,
     borderColor: colors.border,
   },
   button: {
-    backgroundColor: colors.accentRed,
-    borderRadius: radius.md,
+    backgroundColor: colors.bgDark,
+    borderRadius: radius.full,
     padding: spacing.md,
     alignItems: 'center',
     marginTop: spacing.sm,
@@ -168,22 +168,22 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   buttonText: {
-    fontFamily: 'BarlowCondensed_800ExtraBold',
-    fontSize: fontSize.lg,
+    fontFamily: 'Inter_700Bold',
+    fontSize: fontSize.md,
     color: colors.textLight,
-    letterSpacing: 1,
+    letterSpacing: -0.2,
   },
   secondaryButton: {
     alignItems: 'center',
     padding: spacing.sm,
   },
   secondaryText: {
-    fontFamily: 'Barlow_400Regular',
+    fontFamily: 'Inter_400Regular',
     fontSize: fontSize.sm,
     color: colors.textMuted,
   },
   secondaryTextBold: {
-    fontFamily: 'Barlow_700Bold',
+    fontFamily: 'Inter_700Bold',
     color: colors.text,
   },
 })
