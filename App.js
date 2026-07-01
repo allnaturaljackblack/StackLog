@@ -1,9 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import { NavigationContainer } from '@react-navigation/native'
 import { createNativeStackNavigator } from '@react-navigation/native-stack'
-import { View, Modal, Text, TouchableOpacity, StyleSheet } from 'react-native'
-import { useFonts, Barlow_400Regular, Barlow_500Medium, Barlow_600SemiBold, Barlow_700Bold } from '@expo-google-fonts/barlow'
-import { BarlowCondensed_600SemiBold, BarlowCondensed_700Bold, BarlowCondensed_800ExtraBold, BarlowCondensed_900Black } from '@expo-google-fonts/barlow-condensed'
+import { View } from 'react-native'
+import { useFonts, Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold } from '@expo-google-fonts/inter'
 import * as SplashScreen from 'expo-splash-screen'
 import { supabase } from './src/lib/supabase'
 import TabNavigator from './src/navigation/TabNavigator'
@@ -12,11 +11,28 @@ import SignupScreen from './src/screens/auth/SignupScreen'
 import OnboardingNavigator from './src/navigation/OnboardingNavigator'
 import FoodNavigator from './src/navigation/FoodNavigator'
 import WorkoutNavigator from './src/navigation/WorkoutNavigator'
-import { colors, spacing, radius } from './src/utils/theme'
-import { GestureHandlerRootView } from 'react-native-gesture-handler'
-import { Swipeable } from 'react-native-gesture-handler'
+import UserProfileScreen from './src/screens/UserProfileScreen'
+import IntegrationsScreen from './src/screens/IntegrationsScreen'
+import CreatorSetupScreen from './src/screens/CreatorSetupScreen'
+import useSync from './src/hooks/useSync'
 
 SplashScreen.preventAutoHideAsync()
+
+// Returns local date as 'YYYY-MM-DD' (avoids UTC-rollover bug)
+function getLocalToday() {
+  const n = new Date()
+  return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}-${String(n.getDate()).padStart(2, '0')}`
+}
+
+// Infers a sensible meal type from the current hour
+function getDefaultMealType() {
+  const h = new Date().getHours()
+  if (h >= 5  && h < 11) return 'breakfast'
+  if (h >= 11 && h < 14) return 'lunch'
+  if (h >= 14 && h < 17) return 'snack'
+  if (h >= 17 && h < 21) return 'dinner'
+  return 'snack' // late night
+}
 
 const RootStack = createNativeStackNavigator()
 const AuthStack = createNativeStackNavigator()
@@ -31,57 +47,29 @@ function AuthNavigator() {
   )
 }
 
-function MainApp() {
-  const [showLogSheet, setShowLogSheet] = useState(false)
+function MainApp({ userId }) {
+  // Auto-sync fitness integrations whenever the app opens with an active session
+  useSync(userId)
 
   function TabsScreen({ navigation }) {
     return (
-      <View style={{ flex: 1 }}>
-        <TabNavigator onPressLog={() => setShowLogSheet(true)} />
-        <Modal
-          visible={showLogSheet}
-          transparent
-          animationType="slide"
-          onRequestClose={() => setShowLogSheet(false)}
-        >
-          <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setShowLogSheet(false)}>
-            <TouchableOpacity activeOpacity={1} style={styles.sheet}>
-              <View style={styles.handle} />
-              <Text style={styles.sheetTitle}>Quick Log</Text>
-              <View style={styles.grid}>
-                {[
-                  { icon: '🥗', label: 'Log Food' },
-                  { icon: '💪', label: 'Log Workout' },
-                  { icon: '📅', label: 'Plan Meal' },
-                  { icon: '⚖️', label: 'Log Weight' },
-                ].map((opt) => (
-                  <TouchableOpacity
-                    key={opt.label}
-                    style={styles.gridItem}
-                    onPress={() => {
-                      setShowLogSheet(false)
-                      if (opt.label === 'Log Food') {
-                        navigation.navigate('FoodLog', {
-                          screen: 'FoodSearch',
-                          params: {
-                            mealType: 'breakfast',
-                            logDate: new Date().toISOString().split('T')[0]
-                          }
-                        })
-                      } else if (opt.label === 'Log Workout') {
-                        navigation.navigate('WorkoutLog')
-                      }
-                    }}
-                  >
-                    <Text style={styles.gridIcon}>{opt.icon}</Text>
-                    <Text style={styles.gridLabel}>{opt.label}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </TouchableOpacity>
-          </TouchableOpacity>
-        </Modal>
-      </View>
+      <TabNavigator
+        onPressAddWorkout={(logDate) =>
+          navigation.navigate('WorkoutLog', {
+            screen: 'WorkoutSession',
+            params: { logDate: logDate || getLocalToday() },
+          })
+        }
+        onPressAddFood={({ mealType, logDate } = {}) =>
+          navigation.navigate('FoodLog', {
+            screen: 'FoodSearch',
+            params: {
+              mealType: mealType || null,
+              logDate: logDate || getLocalToday(),
+            },
+          })
+        }
+      />
     )
   }
 
@@ -98,6 +86,9 @@ function MainApp() {
         component={WorkoutNavigator}
         options={{ presentation: 'modal' }}
       />
+      <MainStack.Screen name="UserProfile"    component={UserProfileScreen} />
+      <MainStack.Screen name="Integrations"  component={IntegrationsScreen} />
+      <MainStack.Screen name="CreatorSetup"  component={CreatorSetupScreen} />
     </MainStack.Navigator>
   )
 }
@@ -109,14 +100,10 @@ export default function App() {
   const [profileLoading, setProfileLoading] = useState(false)
 
   const [fontsLoaded] = useFonts({
-    Barlow_400Regular,
-    Barlow_500Medium,
-    Barlow_600SemiBold,
-    Barlow_700Bold,
-    BarlowCondensed_600SemiBold,
-    BarlowCondensed_700Bold,
-    BarlowCondensed_800ExtraBold,
-    BarlowCondensed_900Black,
+    Inter_400Regular,
+    Inter_500Medium,
+    Inter_600SemiBold,
+    Inter_700Bold,
   })
 
   useEffect(() => {
@@ -158,28 +145,15 @@ export default function App() {
   if (!fontsLoaded || authLoading || profileLoading) return null
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <NavigationContainer>
-        <View style={{ flex: 1 }} onLayout={onLayoutRootView}>
-          {!session
-            ? <AuthNavigator />
-            : !onboardingCompleted
-            ? <OnboardingNavigator onComplete={() => checkOnboarding(session.user.id)} />
-            : <MainApp />
-          }
-        </View>
-      </NavigationContainer>
-    </GestureHandlerRootView>
+    <NavigationContainer>
+      <View style={{ flex: 1 }} onLayout={onLayoutRootView}>
+        {!session
+          ? <AuthNavigator />
+          : !onboardingCompleted
+          ? <OnboardingNavigator onComplete={() => checkOnboarding(session.user.id)} />
+          : <MainApp userId={session.user.id} />
+        }
+      </View>
+    </NavigationContainer>
   )
 }
-
-const styles = StyleSheet.create({
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  sheet: { backgroundColor: colors.bgCard, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: spacing.lg, paddingBottom: 40 },
-  handle: { width: 36, height: 4, borderRadius: 2, backgroundColor: colors.border, alignSelf: 'center', marginBottom: spacing.lg },
-  sheetTitle: { fontFamily: 'BarlowCondensed_900Black', fontSize: 24, letterSpacing: -0.3, marginBottom: spacing.md, color: colors.text },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
-  gridItem: { width: '47%', backgroundColor: colors.bg, borderRadius: radius.lg, padding: spacing.lg, flexDirection: 'row', alignItems: 'center', gap: spacing.md },
-  gridIcon: { fontSize: 26 },
-  gridLabel: { fontFamily: 'BarlowCondensed_800ExtraBold', fontSize: 16, letterSpacing: -0.2, color: colors.text },
-})
