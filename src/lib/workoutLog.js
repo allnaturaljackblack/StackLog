@@ -1,6 +1,15 @@
 import { supabase } from './supabase'
 
-const LBS_TO_KG = 0.453592
+const LBS_TO_KG  = 0.453592
+const MI_TO_KM   = 1.60934
+
+function getCardioType(exerciseName) {
+  const n = (exerciseName || '').toLowerCase()
+  if (/swim/.test(n))                              return 'swim'
+  if (/run|jog|treadmill|walk|elliptical/.test(n)) return 'run'
+  if (/cycl|bike|bicycle|spin/.test(n))            return 'cycle'
+  return 'time_only'
+}
 
 /**
  * Find an exercise by name, or create a custom one if it doesn't exist.
@@ -33,13 +42,34 @@ async function getOrCreateExercise(name, muscleGroup, userId) {
  * Save a completed workout.
  * Chain: workouts → workout_exercises → workout_sets
  */
-export async function saveWorkout({ userId, startedAt, exercises }) {
-  // 1. Insert workout header
-  const { data: workout, error: workoutError } = await supabase
+export async function saveWorkout({ userId, startedAt, exercises, name, caloriesBurned }) {
+  // 1. Insert workout header (try with name; fall back without if column doesn't exist yet)
+  let workout, workoutError
+
+  const withName = await supabase
     .from('workouts')
-    .insert({ user_id: userId, started_at: startedAt })
+    .insert({
+      user_id: userId,
+      started_at: startedAt,
+      name: name || null,
+      calories_burned: caloriesBurned || null,
+    })
     .select('id')
     .single()
+
+  if (withName.error?.code === 'PGRST204') {
+    // 'name' column not in schema yet — insert without it
+    const withoutName = await supabase
+      .from('workouts')
+      .insert({ user_id: userId, started_at: startedAt })
+      .select('id')
+      .single()
+    workout = withoutName.data
+    workoutError = withoutName.error
+  } else {
+    workout = withName.data
+    workoutError = withName.error
+  }
 
   if (workoutError) throw workoutError
 
@@ -61,15 +91,38 @@ export async function saveWorkout({ userId, startedAt, exercises }) {
 
     if (weError) throw weError
 
-    const setRows = ex.sets
-      .filter((s) => s.weight !== '' && s.reps !== '')
-      .map((s, idx) => ({
-        workout_exercise_id: workoutExercise.id,
-        set_number: idx + 1,
-        weight_kg: parseFloat(s.weight) * LBS_TO_KG,
-        reps: parseInt(s.reps, 10),
-        completed: true,
-      }))
+    const isCardio = (ex.muscleGroup || '').toLowerCase() === 'cardio'
+    let setRows
+
+    if (isCardio) {
+      const ct = getCardioType(ex.name)
+      setRows = ex.sets
+        .filter((s) => s.duration !== '')
+        .map((s, idx) => {
+          let distanceKm = 0
+          if (ct !== 'time_only' && s.distance) {
+            const d = parseFloat(s.distance)
+            if (!isNaN(d)) distanceKm = ct === 'swim' ? d / 1000 : d * MI_TO_KM
+          }
+          return {
+            workout_exercise_id: workoutExercise.id,
+            set_number: idx + 1,
+            weight_kg: distanceKm,           // repurposed: distance in km
+            reps: Math.round(parseFloat(s.duration) || 0), // repurposed: duration in minutes
+            completed: true,
+          }
+        })
+    } else {
+      setRows = ex.sets
+        .filter((s) => s.weight !== '' && s.reps !== '')
+        .map((s, idx) => ({
+          workout_exercise_id: workoutExercise.id,
+          set_number: idx + 1,
+          weight_kg: parseFloat(s.weight) * LBS_TO_KG,
+          reps: parseInt(s.reps, 10),
+          completed: true,
+        }))
+    }
 
     if (setRows.length > 0) {
       const { error: setsError } = await supabase.from('workout_sets').insert(setRows)

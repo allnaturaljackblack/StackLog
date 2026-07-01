@@ -71,7 +71,7 @@ export default function OnboardingComplete({ route, onComplete }) {
     <View style={styles.container}>
       {saving ? (
         <>
-          <ActivityIndicator size="large" color={colors.accentRed} />
+          <ActivityIndicator size="large" color={colors.bgDark} />
           <Text style={styles.savingText}>Setting up your account...</Text>
         </>
       ) : (
@@ -94,8 +94,8 @@ export default function OnboardingComplete({ route, onComplete }) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bgDark, alignItems: 'center', justifyContent: 'center', padding: spacing.lg },
   emoji: { fontSize: 64, marginBottom: spacing.lg },
-  title: { fontFamily: 'BarlowCondensed_900Black', fontSize: 52, color: colors.textLight, letterSpacing: -1, textAlign: 'center', marginBottom: spacing.sm },
-  sub: { fontFamily: 'Barlow_400Regular', fontSize: fontSize.md, color: '#888', textAlign: 'center', lineHeight: 24, marginBottom: spacing.xl },
-  loading: { fontFamily: 'Barlow_400Regular', fontSize: fontSize.sm, color: '#555' },
-  savingText: { fontFamily: 'Barlow_400Regular', fontSize: fontSize.md, color: '#888', marginTop: spacing.lg },
+  title: { fontFamily: 'Inter_700Bold', fontSize: 52, color: colors.textLight, letterSpacing: -1, textAlign: 'center', marginBottom: spacing.sm },
+  sub: { fontFamily: 'Inter_400Regular', fontSize: fontSize.md, color: '#888', textAlign: 'center', lineHeight: 24, marginBottom: spacing.xl },
+  loading: { fontFamily: 'Inter_400Regular', fontSize: fontSize.sm, color: '#555' },
+  savingText: { fontFamily: 'Inter_400Regular', fontSize: fontSize.md, color: '#888', marginTop: spacing.lg },
 })

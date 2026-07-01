@@ -29,7 +29,7 @@ export default function OnboardingWelcome({ navigation }) {
           onPress={() => navigation.navigate('BasicInfo')}
           activeOpacity={0.85}
         >
-          <Text style={styles.buttonText}>GET STARTED</Text>
+          <Text style={styles.buttonText}>Get Started</Text>
         </TouchableOpacity>
         <Text style={styles.steps}>Step 1 of 8</Text>
       </View>
@@ -48,52 +48,52 @@ const styles = StyleSheet.create({
   content: { gap: spacing.lg },
   logo: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   logoText: {
-    fontFamily: 'BarlowCondensed_900Black',
+    fontFamily: 'Inter_700Bold',
     fontSize: 52,
     color: colors.textLight,
     letterSpacing: -1,
   },
   logoBadge: {
-    backgroundColor: colors.accentRed,
+    backgroundColor: colors.bgDark,
     borderRadius: radius.sm,
     paddingHorizontal: 10,
     paddingVertical: 4,
     marginTop: 4,
   },
   logoAccent: {
-    fontFamily: 'BarlowCondensed_900Black',
+    fontFamily: 'Inter_700Bold',
     fontSize: 52,
     color: colors.textLight,
     letterSpacing: -1,
   },
   headline: {
-    fontFamily: 'BarlowCondensed_900Black',
+    fontFamily: 'Inter_700Bold',
     fontSize: 44,
     color: colors.textLight,
     letterSpacing: -1,
     lineHeight: 48,
   },
   sub: {
-    fontFamily: 'Barlow_400Regular',
+    fontFamily: 'Inter_400Regular',
     fontSize: fontSize.md,
     color: '#888',
     lineHeight: 24,
   },
   bottom: { gap: spacing.md },
   button: {
-    backgroundColor: colors.accentRed,
+    backgroundColor: colors.bgDark,
     borderRadius: radius.md,
     padding: spacing.md,
     alignItems: 'center',
   },
   buttonText: {
-    fontFamily: 'BarlowCondensed_800ExtraBold',
+    fontFamily: 'Inter_700Bold',
     fontSize: fontSize.lg,
     color: colors.textLight,
     letterSpacing: 1,
   },
   steps: {
-    fontFamily: 'Barlow_400Regular',
+    fontFamily: 'Inter_400Regular',
     fontSize: fontSize.xs,
     color: '#666',
     textAlign: 'center',

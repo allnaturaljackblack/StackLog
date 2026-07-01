@@ -10,8 +10,16 @@ import { colors, spacing, radius, fontSize } from '../../utils/theme'
 import { CameraView, useCameraPermissions } from 'expo-camera'
 import { useState, useEffect, useRef } from 'react'
 
+const MEAL_TYPES = [
+  { key: 'breakfast', label: 'Breakfast', emoji: '🌅' },
+  { key: 'lunch',     label: 'Lunch',     emoji: '☀️'  },
+  { key: 'dinner',    label: 'Dinner',    emoji: '🌙' },
+  { key: 'snack',     label: 'Snack',     emoji: '🍎' },
+]
+
 export default function FoodSearchScreen({ navigation, route }) {
-  const { mealType, logDate } = route.params
+  const { logDate } = route.params
+  const [selectedMealType, setSelectedMealType] = useState(route.params.mealType || null)
   const [query, setQuery] = useState('')
   const [results, setResults] = useState([])
   const [recentFoods, setRecentFoods] = useState([])
@@ -50,10 +58,14 @@ export default function FoodSearchScreen({ navigation, route }) {
   }
 
   function handleSelectFood(food) {
+    if (!selectedMealType) {
+      Alert.alert('Select a meal', 'Please choose Breakfast, Lunch, Dinner, or Snack before adding food.')
+      return
+    }
     Keyboard.dismiss()
     navigation.navigate('FoodDetail', {
       food,
-      mealType,
+      mealType: selectedMealType,
       logDate,
       userId,
     })
@@ -77,7 +89,7 @@ export default function FoodSearchScreen({ navigation, route }) {
     setSearching(false)
     scannedRef.current = false
     if (food) {
-      navigation.navigate('FoodDetail', { food, mealType, logDate, userId })
+      navigation.navigate('FoodDetail', { food, mealType: selectedMealType, logDate, userId })
     } else {
       Alert.alert(
         'Not found',
@@ -124,8 +136,19 @@ export default function FoodSearchScreen({ navigation, route }) {
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.back}>
           <Text style={styles.backText}>✕</Text>
         </TouchableOpacity>
-        <View style={styles.mealBadge}>
-          <Text style={styles.mealBadgeText}>{mealType.charAt(0).toUpperCase() + mealType.slice(1)}</Text>
+        <View style={styles.mealPicker}>
+          {MEAL_TYPES.map(m => (
+            <TouchableOpacity
+              key={m.key}
+              style={[styles.mealPill, selectedMealType === m.key && styles.mealPillActive]}
+              onPress={() => setSelectedMealType(m.key)}
+              activeOpacity={0.7}
+            >
+              <Text style={[styles.mealPillText, selectedMealType === m.key && styles.mealPillTextActive]}>
+                {m.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
         </View>
       </View>
 
@@ -140,7 +163,7 @@ export default function FoodSearchScreen({ navigation, route }) {
           autoFocus
           returnKeyType="search"
         />
-        {searching && <ActivityIndicator size="small" color={colors.accentRed} />}
+        {searching && <ActivityIndicator size="small" color={colors.text} />}
         {query.length > 0 && !searching && (
           <TouchableOpacity onPress={() => setQuery('')}>
             <Text style={styles.clearText}>✕</Text>
@@ -222,50 +245,53 @@ export default function FoodSearchScreen({ navigation, route }) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.lg, paddingTop: 56, paddingBottom: spacing.sm, gap: spacing.md },
-  back: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.bgCard, alignItems: 'center', justifyContent: 'center' },
+  back: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.bgSecondary, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   backText: { fontSize: 14, color: colors.text },
-  mealBadge: { backgroundColor: colors.bgDark, borderRadius: radius.full, paddingHorizontal: spacing.md, paddingVertical: spacing.xs },
-  mealBadgeText: { fontFamily: 'BarlowCondensed_700Bold', fontSize: fontSize.sm, color: colors.textLight, letterSpacing: 0.5 },
+  mealPicker: { flex: 1, flexDirection: 'row', gap: 6 },
+  mealPill: { flex: 1, paddingVertical: 7, borderRadius: radius.full, backgroundColor: colors.bgSecondary, borderWidth: 1, borderColor: colors.border, alignItems: 'center' },
+  mealPillActive: { backgroundColor: colors.bgDark, borderColor: colors.bgDark },
+  mealPillText: { fontFamily: 'Inter_600SemiBold', fontSize: 11, color: colors.textMuted, letterSpacing: 0.2 },
+  mealPillTextActive: { color: colors.textLight },
 
-  searchBar: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.bgCard, marginHorizontal: spacing.lg, borderRadius: radius.lg, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, gap: spacing.sm, borderWidth: 1, borderColor: colors.border, marginBottom: spacing.xs },
+  searchBar: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.bgSecondary, marginHorizontal: spacing.lg, borderRadius: radius.lg, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, gap: spacing.sm, borderWidth: 1, borderColor: colors.border, marginBottom: spacing.xs },
   searchIcon: { fontSize: 16 },
-  searchInput: { flex: 1, fontFamily: 'Barlow_400Regular', fontSize: fontSize.md, color: colors.text },
+  searchInput: { flex: 1, fontFamily: 'Inter_400Regular', fontSize: fontSize.md, color: colors.text },
   clearText: { fontSize: 14, color: colors.textMuted, padding: 4 },
   scanBtn: { padding: 4 },
   scanBtnIcon: { fontSize: 20, color: colors.textMuted },
 
   brandedToggle: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.lg, paddingVertical: spacing.sm, gap: spacing.sm },
   toggleDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.border, borderWidth: 1, borderColor: colors.textMuted },
-  toggleDotActive: { backgroundColor: colors.accentRed, borderColor: colors.accentRed },
-  brandedToggleText: { fontFamily: 'Barlow_400Regular', fontSize: fontSize.xs, color: colors.textMuted },
+  toggleDotActive: { backgroundColor: colors.bgDark, borderColor: colors.bgDark },
+  brandedToggleText: { fontFamily: 'Inter_400Regular', fontSize: fontSize.xs, color: colors.textMuted },
 
   list: { paddingHorizontal: spacing.lg, paddingBottom: 40 },
-  listHeader: { fontFamily: 'Barlow_700Bold', fontSize: fontSize.xs, color: colors.textMuted, letterSpacing: 1, marginBottom: spacing.sm, marginTop: spacing.sm },
+  listHeader: { fontFamily: 'Inter_700Bold', fontSize: fontSize.xs, color: colors.textMuted, letterSpacing: 0.8, marginBottom: spacing.sm, marginTop: spacing.sm },
 
   foodRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.sm, gap: spacing.md },
   foodInfo: { flex: 1 },
   foodNameRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, flexShrink: 1 },
-  foodName: { fontFamily: 'Barlow_600SemiBold', fontSize: fontSize.md, color: colors.text, flexShrink: 1 },
+  foodName: { fontFamily: 'Inter_600SemiBold', fontSize: fontSize.md, color: colors.text, flexShrink: 1 },
   brandedBadge: { backgroundColor: colors.border, borderRadius: 4, paddingHorizontal: 5, paddingVertical: 1 },
-  brandedBadgeText: { fontFamily: 'Barlow_700Bold', fontSize: 9, color: colors.textMuted, letterSpacing: 0.5 },
-  foodBrand: { fontFamily: 'Barlow_400Regular', fontSize: fontSize.sm, color: colors.textMuted, marginTop: 2 },
+  brandedBadgeText: { fontFamily: 'Inter_700Bold', fontSize: 9, color: colors.textMuted, letterSpacing: 0.5 },
+  foodBrand: { fontFamily: 'Inter_400Regular', fontSize: fontSize.sm, color: colors.textMuted, marginTop: 2 },
   foodRight: { alignItems: 'flex-end' },
-  foodCal: { fontFamily: 'BarlowCondensed_800ExtraBold', fontSize: 18, color: colors.text },
-  foodCalLabel: { fontFamily: 'Barlow_400Regular', fontSize: 10, color: colors.textMuted },
+  foodCal: { fontFamily: 'Inter_700Bold', fontSize: 18, color: colors.text },
+  foodCalLabel: { fontFamily: 'Inter_400Regular', fontSize: 10, color: colors.textMuted },
 
   separator: { height: 1, backgroundColor: colors.border },
 
   emptyState: { alignItems: 'center', paddingTop: spacing.xl, gap: spacing.sm },
-  emptyTitle: { fontFamily: 'BarlowCondensed_800ExtraBold', fontSize: 20, color: colors.text },
-  emptyText: { fontFamily: 'Barlow_400Regular', fontSize: fontSize.sm, color: colors.textMuted, textAlign: 'center' },
-  emptyAction: { backgroundColor: colors.bgDark, borderRadius: radius.md, paddingHorizontal: spacing.lg, paddingVertical: spacing.sm, marginTop: spacing.sm },
-  emptyActionText: { fontFamily: 'BarlowCondensed_700Bold', fontSize: fontSize.sm, color: colors.textLight },
+  emptyTitle: { fontFamily: 'Inter_700Bold', fontSize: 20, color: colors.text },
+  emptyText: { fontFamily: 'Inter_400Regular', fontSize: fontSize.sm, color: colors.textMuted, textAlign: 'center' },
+  emptyAction: { backgroundColor: colors.bgDark, borderRadius: radius.full, paddingHorizontal: spacing.lg, paddingVertical: spacing.sm, marginTop: spacing.sm },
+  emptyActionText: { fontFamily: 'Inter_600SemiBold', fontSize: fontSize.sm, color: colors.textLight },
 })
 
 const scanStyles = StyleSheet.create({
   overlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' },
-  frame: { width: 240, height: 160, borderWidth: 2, borderColor: colors.accent, borderRadius: radius.md },
-  hint: { fontFamily: 'Barlow_600SemiBold', fontSize: fontSize.md, color: '#fff', marginTop: spacing.lg },
+  frame: { width: 240, height: 160, borderWidth: 2, borderColor: colors.textLight, borderRadius: radius.md },
+  hint: { fontFamily: 'Inter_600SemiBold', fontSize: fontSize.md, color: '#fff', marginTop: spacing.lg },
   closeBtn: { position: 'absolute', bottom: 60, alignSelf: 'center', backgroundColor: 'rgba(0,0,0,0.7)', borderRadius: radius.full, paddingHorizontal: spacing.xl, paddingVertical: spacing.md },
-  closeBtnText: { fontFamily: 'BarlowCondensed_800ExtraBold', fontSize: fontSize.lg, color: '#fff', letterSpacing: 0.5 },
+  closeBtnText: { fontFamily: 'Inter_700Bold', fontSize: fontSize.lg, color: '#fff', letterSpacing: 0.3 },
 })

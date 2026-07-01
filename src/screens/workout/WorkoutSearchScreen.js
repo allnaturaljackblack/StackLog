@@ -156,9 +156,16 @@ export default function WorkoutSearchScreen({ navigation, route }) {
 
   function handleSelect(exerciseName, muscleGroup) {
     const supersetWithExId = route.params?.supersetWithExId ?? null
-    navigation.navigate('WorkoutSession', {
-      addExercise: { name: exerciseName, muscleGroup, supersetWithExId },
-    })
+    const onExerciseSaved = route.params?.onExerciseSaved
+
+    if (supersetWithExId) {
+      // Superset: add immediately via callback, then pop back to WorkoutSession
+      onExerciseSaved?.({ name: exerciseName, muscleGroup, supersetWithExId })
+      navigation.goBack()
+    } else {
+      // Regular exercise: go to ExerciseLog to fill in sets first
+      navigation.navigate('ExerciseLog', { exerciseName, muscleGroup, onExerciseSaved })
+    }
   }
 
   return (
@@ -197,6 +204,7 @@ export default function WorkoutSearchScreen({ navigation, route }) {
         horizontal
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.pillRow}
+        style={styles.pillScrollView}
       >
         {MUSCLE_GROUPS.map(item => (
           <TouchableOpacity
@@ -261,7 +269,7 @@ const styles = StyleSheet.create({
     color: colors.text,
   },
   headerTitle: {
-    fontFamily: 'BarlowCondensed_800ExtraBold',
+    fontFamily: 'Inter_700Bold',
     fontSize: fontSize.xl,
     letterSpacing: -0.3,
     color: colors.text,
@@ -269,7 +277,7 @@ const styles = StyleSheet.create({
   searchWrap: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.bgCard,
+    backgroundColor: colors.bgSecondary,
     marginHorizontal: spacing.md,
     marginBottom: spacing.sm,
     borderRadius: radius.md,
@@ -284,7 +292,7 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     height: 44,
-    fontFamily: 'Barlow_400Regular',
+    fontFamily: 'Inter_400Regular',
     fontSize: fontSize.md,
     color: colors.text,
   },
@@ -293,26 +301,32 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     padding: spacing.xs,
   },
+  pillScrollView: {
+    flexShrink: 0,    // prevent the SectionList below from squishing this row
+  },
   pillRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: spacing.md,
     paddingTop: spacing.xs,
     paddingBottom: spacing.md,
     gap: spacing.sm,
   },
   pill: {
+    flexShrink: 0,
     paddingHorizontal: spacing.md,
     paddingVertical: 10,
     borderRadius: radius.full,
-    backgroundColor: colors.bgCard,
+    backgroundColor: colors.bgSecondary,
     borderWidth: 1,
     borderColor: colors.border,
   },
   pillActive: {
-    backgroundColor: colors.text,
-    borderColor: colors.text,
+    backgroundColor: colors.bgDark,
+    borderColor: colors.bgDark,
   },
   pillText: {
-    fontFamily: 'Barlow_600SemiBold',
+    fontFamily: 'Inter_600SemiBold',
     fontSize: fontSize.md,
     color: colors.textMuted,
   },
@@ -320,7 +334,7 @@ const styles = StyleSheet.create({
     color: colors.textLight,
   },
   sectionHeader: {
-    fontFamily: 'BarlowCondensed_800ExtraBold',
+    fontFamily: 'Inter_700Bold',
     fontSize: fontSize.lg,
     letterSpacing: -0.2,
     color: colors.text,
@@ -341,17 +355,17 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
   },
   exerciseName: {
-    fontFamily: 'Barlow_500Medium',
+    fontFamily: 'Inter_500Medium',
     fontSize: fontSize.md,
     color: colors.text,
   },
   addChevron: {
     fontSize: 22,
-    color: colors.accentRed,
-    fontFamily: 'Barlow_700Bold',
+    color: colors.textMuted,
+    fontFamily: 'Inter_700Bold',
   },
   emptyText: {
-    fontFamily: 'Barlow_400Regular',
+    fontFamily: 'Inter_400Regular',
     fontSize: fontSize.md,
     color: colors.textMuted,
     textAlign: 'center',

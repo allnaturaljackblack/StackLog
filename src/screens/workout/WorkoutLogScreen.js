@@ -11,12 +11,58 @@ import {
   KeyboardAvoidingView,
   Platform,
   Dimensions,
+  Modal,
 } from 'react-native'
-import { colors, spacing, radius, fontSize } from '../../utils/theme'
+import { Ionicons } from '@expo/vector-icons'
+import { colors, fonts, spacing, radius, fontSize } from '../../utils/theme'
 import { supabase } from '../../lib/supabase'
 import { saveWorkout } from '../../lib/workoutLog'
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window')
+
+// ---------------------------------------------------------------------------
+// Auto-name a workout based on time of day + dominant muscle group pattern.
+// ---------------------------------------------------------------------------
+function generateWorkoutName(exercises, startedAt) {
+  const hour = startedAt.getHours()
+  let timeLabel
+  if (hour >= 5 && hour < 12)       timeLabel = 'Morning'
+  else if (hour >= 12 && hour < 17)  timeLabel = 'Afternoon'
+  else if (hour >= 17 && hour < 21)  timeLabel = 'Evening'
+  else                               timeLabel = 'Night'
+
+  const groups = exercises.map(e => (e.muscleGroup || '').toLowerCase())
+  const pushMuscles = ['chest', 'shoulders', 'triceps']
+  const pullMuscles = ['back', 'biceps']
+
+  const cardioCount = groups.filter(g => g === 'cardio').length
+  const legsCount   = groups.filter(g => g === 'legs').length
+  const coreCount   = groups.filter(g => g === 'core').length
+  const pushCount   = groups.filter(g => pushMuscles.includes(g)).length
+  const pullCount   = groups.filter(g => pullMuscles.includes(g)).length
+  const total       = groups.length
+
+  let typeLabel
+  if (total === 0) {
+    typeLabel = 'Workout'
+  } else if (cardioCount === total) {
+    typeLabel = 'Cardio'
+  } else if (legsCount === total || legsCount + coreCount === total) {
+    typeLabel = 'Leg Day'
+  } else if (pushCount === total) {
+    typeLabel = 'Push'
+  } else if (pullCount === total) {
+    typeLabel = 'Pull'
+  } else if (pushCount + pullCount === total || pushCount + pullCount + coreCount === total) {
+    typeLabel = 'Upper Body'
+  } else if (coreCount === total) {
+    typeLabel = 'Core'
+  } else {
+    typeLabel = 'Lift'
+  }
+
+  return `${timeLabel} ${typeLabel}`
+}
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -31,12 +77,32 @@ function makeSet() {
   return { weight: '', reps: '', id: Date.now() + Math.random() }
 }
 
+function makeCardioSet() {
+  return { distance: '', duration: '', id: Date.now() + Math.random() }
+}
+
+/**
+ * Returns the cardio sub-type based on exercise name.
+ * 'run'      → distance (mi) + time + auto pace
+ * 'cycle'    → distance (mi) + time
+ * 'swim'     → distance (m)  + time
+ * 'time_only'→ time only (basketball, soccer, etc.)
+ */
+function getCardioType(exerciseName) {
+  const n = (exerciseName || '').toLowerCase()
+  if (/swim/.test(n))                              return 'swim'
+  if (/run|jog|treadmill|walk|elliptical/.test(n)) return 'run'
+  if (/cycl|bike|bicycle|spin/.test(n))            return 'cycle'
+  return 'time_only'
+}
+
 function makeExercise(name, muscleGroup, supersetId = null) {
+  const isCardio = (muscleGroup || '').toLowerCase() === 'cardio'
   return {
     id: Date.now() + Math.random(),
     name,
     muscleGroup,
-    sets: [makeSet()],
+    sets: [isCardio ? makeCardioSet() : makeSet()],
     supersetId,
   }
 }
@@ -67,18 +133,29 @@ function buildGroups(exercises) {
   return groups
 }
 
-const DARK_CARD = '#1C1C1E'
-const SS_RED = colors.accentRed
-
 // ---------------------------------------------------------------------------
 // Session summary panel (sticky bottom)
 // ---------------------------------------------------------------------------
+function isSetDone(set) {
+  if ('duration' in set) return set.duration !== ''   // cardio
+  return set.weight !== '' && set.reps !== ''          // strength
+}
+
+function setLabel(set, ex) {
+  if ('duration' in set) {
+    const ct = getCardioType(ex.name)
+    const distPart = set.distance
+      ? `${set.distance} ${ct === 'swim' ? 'm' : 'mi'} · `
+      : ''
+    return `${distPart}${set.duration} min`
+  }
+  return `${set.weight} lbs × ${set.reps}`
+}
+
 function SessionSummary({ exercises, open, onToggle }) {
-  const loggedExercises = exercises.filter((ex) =>
-    ex.sets.some((s) => s.weight !== '' && s.reps !== '')
-  )
+  const loggedExercises = exercises.filter((ex) => ex.sets.some(isSetDone))
   const totalSets = loggedExercises.reduce(
-    (sum, ex) => sum + ex.sets.filter((s) => s.weight !== '' && s.reps !== '').length,
+    (sum, ex) => sum + ex.sets.filter(isSetDone).length,
     0
   )
 
@@ -105,13 +182,13 @@ function SessionSummary({ exercises, open, onToggle }) {
             <Text style={summaryStyles.emptyText}>No sets logged yet</Text>
           ) : (
             loggedExercises.map((ex) => {
-              const doneSets = ex.sets.filter((s) => s.weight !== '' && s.reps !== '')
+              const doneSets = ex.sets.filter(isSetDone)
               return (
                 <View key={ex.id} style={summaryStyles.exBlock}>
                   <Text style={summaryStyles.exName}>{ex.name}</Text>
                   {doneSets.map((s, i) => (
                     <Text key={s.id} style={summaryStyles.setLine}>
-                      {`${i + 1}  ·  ${s.weight} lbs × ${s.reps}`}
+                      {`${i + 1}  ·  ${setLabel(s, ex)}`}
                     </Text>
                   ))}
                 </View>
@@ -139,7 +216,7 @@ function SetRow({ setIndex, set, onChangeWeight, onChangeReps, onDelete, showDel
           value={set.weight}
           onChangeText={onChangeWeight}
           placeholder="lbs"
-          placeholderTextColor="rgba(255,255,255,0.3)"
+          placeholderTextColor={colors.textMuted}
           keyboardType="decimal-pad"
           returnKeyType="next"
           selectTextOnFocus
@@ -150,11 +227,77 @@ function SetRow({ setIndex, set, onChangeWeight, onChangeReps, onDelete, showDel
           value={set.reps}
           onChangeText={onChangeReps}
           placeholder="reps"
-          placeholderTextColor="rgba(255,255,255,0.3)"
+          placeholderTextColor={colors.textMuted}
           keyboardType="number-pad"
           returnKeyType="done"
           selectTextOnFocus
         />
+      </View>
+      {showDelete && (
+        <TouchableOpacity onPress={onDelete} style={styles.deleteSetBtn}>
+          <Text style={styles.deleteSetIcon}>✕</Text>
+        </TouchableOpacity>
+      )}
+    </View>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Cardio set row
+// ---------------------------------------------------------------------------
+function CardioSetRow({ setIndex, set, cardioType, onChangeDistance, onChangeDuration, onDelete, showDelete }) {
+  const isSwim     = cardioType === 'swim'
+  const isTimeOnly = cardioType === 'time_only'
+
+  // Auto-calculate pace for running (min/mile)
+  const pace = (!isSwim && !isTimeOnly && set.distance && set.duration)
+    ? (() => {
+        const dist = parseFloat(set.distance)
+        const dur  = parseFloat(set.duration)
+        if (!dist || !dur) return null
+        const paceMin    = dur / dist
+        const paceMinInt = Math.floor(paceMin)
+        const paceSec    = Math.round((paceMin - paceMinInt) * 60)
+        return `${paceMinInt}:${paceSec.toString().padStart(2, '0')}/mi`
+      })()
+    : null
+
+  return (
+    <View style={styles.setRow}>
+      <View style={styles.setNumWrap}>
+        <Text style={styles.setNum}>{setIndex + 1}</Text>
+      </View>
+      <View style={styles.inputGroup}>
+        {!isTimeOnly && (
+          <>
+            <TextInput
+              style={[styles.setInput, { flex: 1.4 }]}
+              value={set.distance}
+              onChangeText={onChangeDistance}
+              placeholder={isSwim ? 'm' : 'mi'}
+              placeholderTextColor={colors.textMuted}
+              keyboardType="decimal-pad"
+              returnKeyType="next"
+              selectTextOnFocus
+            />
+            <Text style={styles.inputSep}>·</Text>
+          </>
+        )}
+        <TextInput
+          style={[styles.setInput, { flex: 1.4 }]}
+          value={set.duration}
+          onChangeText={onChangeDuration}
+          placeholder="min"
+          placeholderTextColor={colors.textMuted}
+          keyboardType="decimal-pad"
+          returnKeyType="done"
+          selectTextOnFocus
+        />
+        {pace ? (
+          <Text style={styles.cardioPaceText}>{pace}</Text>
+        ) : (
+          !isTimeOnly && <View style={{ flex: 1 }} />
+        )}
       </View>
       {showDelete && (
         <TouchableOpacity onPress={onDelete} style={styles.deleteSetBtn}>
@@ -183,6 +326,9 @@ function ExerciseCard({
   const [qReps, setQReps] = useState('')
   const [qWeight, setQWeight] = useState('')
 
+  const isCardio   = (exercise.muscleGroup || '').toLowerCase() === 'cardio'
+  const cardioType = isCardio ? getCardioType(exercise.name) : null
+
   function handleApply() {
     const numSets = parseInt(qSets, 10)
     const reps = qReps.trim()
@@ -192,6 +338,40 @@ function ExerciseCard({
     setQSets('')
     setQReps('')
     setQWeight('')
+  }
+
+  // Column labels differ per exercise type
+  function renderColLabels() {
+    if (!isCardio) {
+      return (
+        <View style={styles.colLabels}>
+          <Text style={[styles.colLabel, { width: 32 }]}>SET</Text>
+          <Text style={[styles.colLabel, { flex: 1, textAlign: 'center' }]}>WEIGHT (LBS)</Text>
+          <Text style={[styles.colLabel, { flex: 1, textAlign: 'center' }]}>REPS</Text>
+        </View>
+      )
+    }
+    if (cardioType === 'time_only') {
+      return (
+        <View style={styles.colLabels}>
+          <Text style={[styles.colLabel, { width: 32 }]}>INT</Text>
+          <Text style={[styles.colLabel, { flex: 1, textAlign: 'center' }]}>TIME (MIN)</Text>
+        </View>
+      )
+    }
+    const distLabel = cardioType === 'swim' ? 'DISTANCE (M)' : 'DISTANCE (MI)'
+    const thirdCol  = (cardioType === 'run' || cardioType === 'cycle') ? 'TIME (MIN)' : 'TIME (MIN)'
+    return (
+      <View style={styles.colLabels}>
+        <Text style={[styles.colLabel, { width: 32 }]}>INT</Text>
+        <Text style={[styles.colLabel, { flex: 1.4, textAlign: 'center' }]}>{distLabel}</Text>
+        <Text style={[styles.colLabel, { flex: 0.2, textAlign: 'center' }]}> </Text>
+        <Text style={[styles.colLabel, { flex: 1.4, textAlign: 'center' }]}>{thirdCol}</Text>
+        {(cardioType === 'run' || cardioType === 'cycle') && (
+          <Text style={[styles.colLabel, { flex: 1, textAlign: 'center' }]}>PACE</Text>
+        )}
+      </View>
+    )
   }
 
   return (
@@ -215,80 +395,91 @@ function ExerciseCard({
         </TouchableOpacity>
       </View>
 
-      {/* Quick-fill row */}
-      <View style={styles.quickFillRow}>
-        <TextInput
-          style={styles.qfInput}
-          value={qSets}
-          onChangeText={setQSets}
-          placeholder="sets"
-          placeholderTextColor="rgba(255,255,255,0.25)"
-          keyboardType="number-pad"
-          returnKeyType="next"
-          selectTextOnFocus
-        />
-        <Text style={styles.qfSep}>×</Text>
-        <TextInput
-          style={styles.qfInput}
-          value={qReps}
-          onChangeText={setQReps}
-          placeholder="reps"
-          placeholderTextColor="rgba(255,255,255,0.25)"
-          keyboardType="number-pad"
-          returnKeyType="next"
-          selectTextOnFocus
-        />
-        <Text style={styles.qfSep}>@</Text>
-        <TextInput
-          style={[styles.qfInput, { flex: 1.4 }]}
-          value={qWeight}
-          onChangeText={setQWeight}
-          placeholder="lbs"
-          placeholderTextColor="rgba(255,255,255,0.25)"
-          keyboardType="decimal-pad"
-          returnKeyType="done"
-          onSubmitEditing={handleApply}
-          selectTextOnFocus
-        />
-        <TouchableOpacity
-          style={[
-            styles.qfApplyBtn,
-            (!qSets || !qReps || !qWeight) && styles.qfApplyBtnDisabled,
-          ]}
-          onPress={handleApply}
-          activeOpacity={0.7}
-        >
-          <Text style={styles.qfApplyText}>Apply</Text>
-        </TouchableOpacity>
-      </View>
+      {/* Quick-fill row — strength only */}
+      {!isCardio && (
+        <View style={styles.quickFillRow}>
+          <TextInput
+            style={styles.qfInput}
+            value={qSets}
+            onChangeText={setQSets}
+            placeholder="sets"
+            placeholderTextColor={colors.textMuted}
+            keyboardType="number-pad"
+            returnKeyType="next"
+            selectTextOnFocus
+          />
+          <Text style={styles.qfSep}>×</Text>
+          <TextInput
+            style={styles.qfInput}
+            value={qReps}
+            onChangeText={setQReps}
+            placeholder="reps"
+            placeholderTextColor={colors.textMuted}
+            keyboardType="number-pad"
+            returnKeyType="next"
+            selectTextOnFocus
+          />
+          <Text style={styles.qfSep}>@</Text>
+          <TextInput
+            style={[styles.qfInput, { flex: 1.4 }]}
+            value={qWeight}
+            onChangeText={setQWeight}
+            placeholder="lbs"
+            placeholderTextColor={colors.textMuted}
+            keyboardType="decimal-pad"
+            returnKeyType="done"
+            onSubmitEditing={handleApply}
+            selectTextOnFocus
+          />
+          <TouchableOpacity
+            style={[
+              styles.qfApplyBtn,
+              (!qSets || !qReps || !qWeight) && styles.qfApplyBtnDisabled,
+            ]}
+            onPress={handleApply}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.qfApplyText}>Apply</Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
       {/* Column labels */}
-      <View style={styles.colLabels}>
-        <Text style={[styles.colLabel, { width: 32 }]}>SET</Text>
-        <Text style={[styles.colLabel, { flex: 1, textAlign: 'center' }]}>WEIGHT (LBS)</Text>
-        <Text style={[styles.colLabel, { flex: 1, textAlign: 'center' }]}>REPS</Text>
-      </View>
+      {renderColLabels()}
 
       {/* Sets */}
-      {exercise.sets.map((set, idx) => (
-        <SetRow
-          key={set.id}
-          setIndex={idx}
-          set={set}
-          onChangeWeight={(val) => onUpdateSet(idx, 'weight', val)}
-          onChangeReps={(val) => onUpdateSet(idx, 'reps', val)}
-          onDelete={() => onDeleteSet(idx)}
-          showDelete={exercise.sets.length > 1}
-        />
-      ))}
+      {exercise.sets.map((set, idx) =>
+        isCardio ? (
+          <CardioSetRow
+            key={set.id}
+            setIndex={idx}
+            set={set}
+            cardioType={cardioType}
+            onChangeDistance={(val) => onUpdateSet(idx, 'distance', val)}
+            onChangeDuration={(val) => onUpdateSet(idx, 'duration', val)}
+            onDelete={() => onDeleteSet(idx)}
+            showDelete={exercise.sets.length > 1}
+          />
+        ) : (
+          <SetRow
+            key={set.id}
+            setIndex={idx}
+            set={set}
+            onChangeWeight={(val) => onUpdateSet(idx, 'weight', val)}
+            onChangeReps={(val) => onUpdateSet(idx, 'reps', val)}
+            onDelete={() => onDeleteSet(idx)}
+            showDelete={exercise.sets.length > 1}
+          />
+        )
+      )}
 
-      {/* Add set */}
+      {/* Add set / interval */}
       <TouchableOpacity style={styles.addSetBtn} onPress={onAddSet}>
-        <Text style={styles.addSetText}>+ Add Set</Text>
+        <Text style={styles.addSetText}>{isCardio ? '+ Add Interval' : '+ Add Set'}</Text>
       </TouchableOpacity>
 
-      {/* Superset CTA — only on solo cards */}
-      {onAddSuperset && (
+      {/* Superset CTA — only on solo cards, not cardio */}
+      {onAddSuperset && !isCardio && (
         <TouchableOpacity style={styles.addSupersetBtn} onPress={onAddSuperset}>
           <Text style={styles.addSupersetText}>+ Superset</Text>
         </TouchableOpacity>
@@ -369,15 +560,294 @@ function SupersetGroup({
 }
 
 // ---------------------------------------------------------------------------
+// RenameSheet — lightweight mid-workout rename
+// ---------------------------------------------------------------------------
+function RenameSheet({ visible, currentName, onRename, onClose }) {
+  const [draft, setDraft] = useState(currentName)
+
+  useEffect(() => {
+    if (visible) setDraft(currentName)
+  }, [visible, currentName])
+
+  function commit() {
+    onRename(draft.trim() || currentName)
+    onClose()
+  }
+
+  return (
+    <Modal
+      visible={visible}
+      transparent
+      animationType="slide"
+      onRequestClose={onClose}
+    >
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        <TouchableOpacity
+          style={rnStyles.backdrop}
+          activeOpacity={1}
+          onPress={onClose}
+        />
+        <View style={rnStyles.sheet}>
+          <View style={rnStyles.handle} />
+          <Text style={rnStyles.title}>Rename Workout</Text>
+          <TextInput
+            style={rnStyles.input}
+            value={draft}
+            onChangeText={setDraft}
+            autoFocus
+            selectTextOnFocus
+            returnKeyType="done"
+            onSubmitEditing={commit}
+            placeholderTextColor={colors.textMuted}
+          />
+          <View style={rnStyles.btnRow}>
+            <TouchableOpacity onPress={onClose} style={rnStyles.cancelBtn} activeOpacity={0.7}>
+              <Text style={rnStyles.cancelText}>Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={commit} style={rnStyles.doneBtn} activeOpacity={0.85}>
+              <Text style={rnStyles.doneText}>Done</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </KeyboardAvoidingView>
+    </Modal>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// SaveSheet — Strava-style save summary shown before committing
+// ---------------------------------------------------------------------------
+function SaveSheet({ visible, initialName, exercises, elapsed, onSave, onDismiss, saving }) {
+  const [name, setName] = useState(initialName)
+  const [calStrength, setCalStrength] = useState('')
+  const [calCardio, setCalCardio] = useState({})
+  const [calOverride, setCalOverride] = useState('')
+
+  useEffect(() => {
+    if (visible) {
+      setName(initialName)
+      setCalStrength('')
+      setCalCardio({})
+      setCalOverride('')
+    }
+  }, [visible, initialName])
+
+  const loggedExercises = exercises.filter((ex) => ex.sets.some(isSetDone))
+  const cardioExercises = loggedExercises.filter(
+    (ex) => (ex.muscleGroup || '').toLowerCase() === 'cardio'
+  )
+  const hasStrength = loggedExercises.some(
+    (ex) => (ex.muscleGroup || '').toLowerCase() !== 'cardio'
+  )
+
+  const totalSets = loggedExercises.reduce(
+    (sum, ex) => sum + ex.sets.filter(isSetDone).length,
+    0
+  )
+  const totalVolume = loggedExercises.reduce((sum, ex) => {
+    if ((ex.muscleGroup || '').toLowerCase() === 'cardio') return sum
+    return (
+      sum +
+      ex.sets
+        .filter(isSetDone)
+        .reduce((s2, s) => s2 + parseFloat(s.weight || 0) * parseInt(s.reps || 0, 10), 0)
+    )
+  }, 0)
+  const volDisplay =
+    totalVolume >= 1000
+      ? `${(totalVolume / 1000).toFixed(1)}k`
+      : String(Math.round(totalVolume))
+
+  // Compute the calories number that will be saved
+  const finalCalories = (() => {
+    const ovr = parseInt(calOverride, 10)
+    if (!isNaN(ovr) && ovr > 0) return ovr
+    const sc = parseInt(calStrength, 10) || 0
+    const cc = Object.values(calCardio).reduce((s, v) => s + (parseInt(v, 10) || 0), 0)
+    const total = sc + cc
+    return total > 0 ? total : null
+  })()
+
+  const stats = [
+    { label: 'Duration',  value: formatDuration(elapsed) },
+    { label: 'Exercises', value: String(loggedExercises.length) },
+    { label: 'Sets',      value: String(totalSets) },
+    { label: 'Vol (lbs)', value: volDisplay },
+  ]
+
+  return (
+    <Modal
+      visible={visible}
+      transparent
+      animationType="slide"
+      onRequestClose={onDismiss}
+    >
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        <TouchableOpacity style={ssStyles.backdrop} activeOpacity={1} onPress={onDismiss} />
+        <ScrollView
+          style={ssStyles.sheet}
+          contentContainerStyle={ssStyles.sheetContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={ssStyles.handle} />
+          <Text style={ssStyles.sheetTitle}>Save Workout</Text>
+
+          {/* Editable name */}
+          <TextInput
+            style={ssStyles.nameInput}
+            value={name}
+            onChangeText={setName}
+            placeholder="Workout name"
+            placeholderTextColor={colors.textMuted}
+            returnKeyType="done"
+            selectTextOnFocus
+          />
+
+          {/* Stats */}
+          <View style={ssStyles.statsRow}>
+            {stats.map((s, i) => (
+              <View key={s.label} style={ssStyles.statItem}>
+                <Text style={ssStyles.statValue}>{s.value}</Text>
+                <Text style={ssStyles.statLabel}>{s.label}</Text>
+                {i < stats.length - 1 && <View style={ssStyles.statDivider} />}
+              </View>
+            ))}
+          </View>
+
+          {/* Calories Burned section */}
+          {loggedExercises.length > 0 && (
+            <View style={ssStyles.calsSection}>
+              <Text style={ssStyles.calsSectionTitle}>
+                CALORIES BURNED{' '}
+                <Text style={ssStyles.calsSectionOpt}>(optional)</Text>
+              </Text>
+
+              {/* Strength subtotal */}
+              {hasStrength && (
+                <View style={ssStyles.calRow}>
+                  <Ionicons name="barbell-outline" size={14} color={colors.textMuted} />
+                  <Text style={ssStyles.calRowLabel}>Strength (all lifts)</Text>
+                  <View style={ssStyles.calInputWrap}>
+                    <TextInput
+                      style={ssStyles.calInput}
+                      value={calStrength}
+                      onChangeText={setCalStrength}
+                      placeholder="0"
+                      placeholderTextColor={colors.textMuted}
+                      keyboardType="number-pad"
+                      returnKeyType="done"
+                      selectTextOnFocus
+                    />
+                    <Text style={ssStyles.calUnit}>cal</Text>
+                  </View>
+                </View>
+              )}
+
+              {/* Per-cardio-exercise rows */}
+              {cardioExercises.map((ex) => (
+                <View key={ex.id} style={ssStyles.calRow}>
+                  <Ionicons name="flame-outline" size={14} color={colors.textMuted} />
+                  <Text style={ssStyles.calRowLabel} numberOfLines={1}>{ex.name}</Text>
+                  <View style={ssStyles.calInputWrap}>
+                    <TextInput
+                      style={ssStyles.calInput}
+                      value={calCardio[ex.name] || ''}
+                      onChangeText={(v) => setCalCardio((prev) => ({ ...prev, [ex.name]: v }))}
+                      placeholder="0"
+                      placeholderTextColor={colors.textMuted}
+                      keyboardType="number-pad"
+                      returnKeyType="done"
+                      selectTextOnFocus
+                    />
+                    <Text style={ssStyles.calUnit}>cal</Text>
+                  </View>
+                </View>
+              ))}
+
+              {/* Override total */}
+              <View style={[ssStyles.calRow, ssStyles.calOverrideRow]}>
+                <Ionicons name="flash-outline" size={14} color={colors.textMuted} />
+                <View style={{ flex: 1 }}>
+                  <Text style={ssStyles.calRowLabel}>Total (override all)</Text>
+                  <Text style={ssStyles.calOverrideHint}>Replaces individual entries above</Text>
+                </View>
+                <View style={ssStyles.calInputWrap}>
+                  <TextInput
+                    style={ssStyles.calInput}
+                    value={calOverride}
+                    onChangeText={setCalOverride}
+                    placeholder="0"
+                    placeholderTextColor={colors.textMuted}
+                    keyboardType="number-pad"
+                    returnKeyType="done"
+                    selectTextOnFocus
+                  />
+                  <Text style={ssStyles.calUnit}>cal</Text>
+                </View>
+              </View>
+
+              {finalCalories > 0 && (
+                <Text style={ssStyles.calsTotalPreview}>🔥 {finalCalories} cal will be logged</Text>
+              )}
+            </View>
+          )}
+
+          {/* Save CTA */}
+          <TouchableOpacity
+            style={[ssStyles.saveBtn, saving && { opacity: 0.6 }]}
+            onPress={() => onSave(name.trim() || 'Workout', finalCalories)}
+            disabled={saving}
+            activeOpacity={0.85}
+          >
+            <Text style={ssStyles.saveBtnText}>{saving ? 'Saving…' : 'Save Workout'}</Text>
+          </TouchableOpacity>
+
+          {/* Keep going */}
+          <TouchableOpacity onPress={onDismiss} style={ssStyles.keepGoingBtn} activeOpacity={0.7}>
+            <Text style={ssStyles.keepGoingText}>Keep Going</Text>
+          </TouchableOpacity>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </Modal>
+  )
+}
+
+// ---------------------------------------------------------------------------
 // Main screen
 // ---------------------------------------------------------------------------
 export default function WorkoutLogScreen({ navigation, route }) {
   const [exercises, setExercises] = useState([])
-  const [startedAt] = useState(new Date())
+  const [startedAt] = useState(() => {
+    const logDate = route.params?.logDate
+    if (logDate) {
+      const now = new Date()
+      const timeStr = now.toTimeString().slice(0, 8)
+      return new Date(`${logDate}T${timeStr}`)
+    }
+    return new Date()
+  })
   const [elapsed, setElapsed] = useState(0)
   const [saving, setSaving] = useState(false)
   const [summaryOpen, setSummaryOpen] = useState(false)
+  const [workoutName, setWorkoutName] = useState(() => generateWorkoutName([], new Date()))
+  const [nameEdited, setNameEdited] = useState(false)
+  const [showSaveSheet, setShowSaveSheet] = useState(false)
+  const [showRenameSheet, setShowRenameSheet] = useState(false)
   const timerRef = useRef(null)
+
+  // Auto-update name whenever exercises change — unless user has renamed manually
+  useEffect(() => {
+    if (!nameEdited) {
+      setWorkoutName(generateWorkoutName(exercises, startedAt))
+    }
+  }, [exercises, nameEdited, startedAt])
 
   // Timer
   useEffect(() => {
@@ -385,13 +855,10 @@ export default function WorkoutLogScreen({ navigation, route }) {
     return () => clearInterval(timerRef.current)
   }, [])
 
-  // Receive exercise back from WorkoutSearchScreen
-  useEffect(() => {
-    const incoming = route.params?.addExercise
-    if (!incoming) return
-
-    const { name, muscleGroup, supersetWithExId } = incoming
-
+  // Stable callback passed to WorkoutSearch → ExerciseLog via navigation params.
+  // Uses functional setExercises so there are no stale-closure issues even if the
+  // component has already re-rendered between navigation calls.
+  const onExerciseSaved = useCallback(({ name, muscleGroup, supersetWithExId, sets }) => {
     setExercises((prev) => {
       if (supersetWithExId) {
         const targetIdx = prev.findIndex((ex) => ex.id === supersetWithExId)
@@ -416,18 +883,27 @@ export default function WorkoutLogScreen({ navigation, route }) {
         return result
       }
 
-      // Normal append
-      return [...prev, makeExercise(name, muscleGroup)]
+      // Normal append — use pre-filled sets if provided (from ExerciseLogScreen)
+      const newEx = {
+        id: Date.now() + Math.random(),
+        name,
+        muscleGroup,
+        sets: sets && sets.length > 0 ? sets : [makeSet()],
+        supersetId: null,
+      }
+      return [...prev, newEx]
     })
-
-    navigation.setParams({ addExercise: undefined })
-  }, [route.params?.addExercise])
+  }, [])
 
   // ---- Mutators ----
 
   const addSet = useCallback((exId) => {
     setExercises((prev) =>
-      prev.map((ex) => (ex.id === exId ? { ...ex, sets: [...ex.sets, makeSet()] } : ex))
+      prev.map((ex) => {
+        if (ex.id !== exId) return ex
+        const isCardio = (ex.muscleGroup || '').toLowerCase() === 'cardio'
+        return { ...ex, sets: [...ex.sets, isCardio ? makeCardioSet() : makeSet()] }
+      })
     )
   }, [])
 
@@ -487,30 +963,41 @@ export default function WorkoutLogScreen({ navigation, route }) {
     )
   }, [])
 
-  // ---- Save ----
+  // ---- Save flow ----
 
-  async function handleFinish() {
+  // "Finish" validates then opens the save sheet
+  function handleFinish() {
     if (exercises.length === 0) {
       Alert.alert('No exercises', 'Add at least one exercise before finishing.')
       return
     }
     const totalSets = exercises.reduce(
-      (sum, ex) => sum + ex.sets.filter((s) => s.weight !== '' && s.reps !== '').length,
+      (sum, ex) => sum + ex.sets.filter(isSetDone).length,
       0
     )
     if (totalSets === 0) {
-      Alert.alert('No sets logged', 'Enter weight and reps for at least one set.')
+      Alert.alert('No sets logged', 'Log at least one set before finishing.')
       return
     }
+    setShowSaveSheet(true)
+  }
+
+  // Called by SaveSheet with the final chosen name + optional calories
+  async function handleSave(finalName, caloriesBurned) {
     setSaving(true)
     try {
       const { data: { user } } = await supabase.auth.getUser()
-      await saveWorkout({ userId: user.id, startedAt: startedAt.toISOString(), exercises })
+      await saveWorkout({
+        userId: user.id,
+        startedAt: startedAt.toISOString(),
+        exercises,
+        name: finalName,
+        caloriesBurned: caloriesBurned || null,
+      })
       navigation.getParent()?.goBack()
     } catch (err) {
       console.error('Error saving workout:', err)
       Alert.alert('Error', 'Could not save workout. Please try again.')
-    } finally {
       setSaving(false)
     }
   }
@@ -536,16 +1023,26 @@ export default function WorkoutLogScreen({ navigation, route }) {
           <TouchableOpacity onPress={handleDiscard} style={styles.headerBtn}>
             <Text style={styles.headerBtnTextMuted}>Discard</Text>
           </TouchableOpacity>
-          <View style={styles.headerCenter}>
-            <Text style={styles.headerTitle}>New Workout</Text>
+
+          {/* Tappable workout name */}
+          <TouchableOpacity
+            style={styles.headerCenter}
+            onPress={() => setShowRenameSheet(true)}
+            activeOpacity={0.7}
+          >
+            <View style={styles.headerNameRow}>
+              <Text style={styles.headerTitle} numberOfLines={1}>{workoutName}</Text>
+              <Ionicons name="pencil" size={12} color={colors.textMuted} style={styles.pencilIcon} />
+            </View>
             <Text style={styles.timer}>{formatDuration(elapsed)}</Text>
-          </View>
+          </TouchableOpacity>
+
           <TouchableOpacity
             onPress={handleFinish}
-            style={[styles.finishBtn, saving && { opacity: 0.6 }]}
-            disabled={saving}
+            style={styles.finishBtn}
+            activeOpacity={0.85}
           >
-            <Text style={styles.finishBtnText}>{saving ? 'Saving…' : 'Finish'}</Text>
+            <Text style={styles.finishBtnText}>Finish</Text>
           </TouchableOpacity>
         </View>
 
@@ -577,7 +1074,7 @@ export default function WorkoutLogScreen({ navigation, route }) {
                     onRemoveExercise={() => removeExercise(ex.id)}
                     onQuickFill={(numSets, reps, weight) => quickFillSets(ex.id, numSets, reps, weight)}
                     onAddSuperset={() =>
-                      navigation.navigate('WorkoutSearch', { supersetWithExId: ex.id })
+                      navigation.navigate('WorkoutSearch', { supersetWithExId: ex.id, onExerciseSaved })
                     }
                   />
                 )
@@ -596,6 +1093,7 @@ export default function WorkoutLogScreen({ navigation, route }) {
                   onAddToSuperset={() =>
                     navigation.navigate('WorkoutSearch', {
                       supersetWithExId: group.exercises[group.exercises.length - 1].id,
+                      onExerciseSaved,
                     })
                   }
                   onBreakSuperset={() => breakSuperset(group.supersetId)}
@@ -606,7 +1104,7 @@ export default function WorkoutLogScreen({ navigation, route }) {
 
           <TouchableOpacity
             style={styles.addExerciseBtn}
-            onPress={() => navigation.navigate('WorkoutSearch')}
+            onPress={() => navigation.navigate('WorkoutSearch', { onExerciseSaved })}
             activeOpacity={0.8}
           >
             <Text style={styles.addExerciseText}>+ Add Exercise</Text>
@@ -620,6 +1118,25 @@ export default function WorkoutLogScreen({ navigation, route }) {
           onToggle={() => setSummaryOpen((v) => !v)}
         />
       </KeyboardAvoidingView>
+
+      {/* Mid-workout rename sheet */}
+      <RenameSheet
+        visible={showRenameSheet}
+        currentName={workoutName}
+        onRename={(name) => { setWorkoutName(name); setNameEdited(true) }}
+        onClose={() => setShowRenameSheet(false)}
+      />
+
+      {/* Save summary sheet */}
+      <SaveSheet
+        visible={showSaveSheet}
+        initialName={workoutName}
+        exercises={exercises}
+        elapsed={elapsed}
+        onSave={handleSave}
+        onDismiss={() => setShowSaveSheet(false)}
+        saving={saving}
+      />
     </SafeAreaView>
   )
 }
@@ -643,33 +1160,43 @@ const styles = StyleSheet.create({
   },
   headerBtn: { width: 72 },
   headerBtnTextMuted: {
-    fontFamily: 'Barlow_400Regular',
+    fontFamily: 'Inter_400Regular',
     fontSize: fontSize.md,
     color: colors.textMuted,
   },
-  headerCenter: { alignItems: 'center' },
+  headerCenter: { flex: 1, alignItems: 'center', paddingHorizontal: spacing.xs },
+  headerNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    maxWidth: 200,
+  },
   headerTitle: {
-    fontFamily: 'BarlowCondensed_800ExtraBold',
-    fontSize: fontSize.xl,
+    fontFamily: 'Inter_700Bold',
+    fontSize: fontSize.lg,
     letterSpacing: -0.3,
     color: colors.text,
+    flexShrink: 1,
+  },
+  pencilIcon: {
+    marginTop: 1,
   },
   timer: {
-    fontFamily: 'BarlowCondensed_700Bold',
+    fontFamily: 'Inter_700Bold',
     fontSize: fontSize.sm,
-    color: colors.accentRed,
+    color: colors.textSecondary,
     letterSpacing: 1,
     marginTop: 2,
   },
   finishBtn: {
     width: 72,
-    backgroundColor: colors.accentRed,
+    backgroundColor: colors.bgDark,
     borderRadius: radius.md,
     paddingVertical: 8,
     alignItems: 'center',
   },
   finishBtnText: {
-    fontFamily: 'BarlowCondensed_800ExtraBold',
+    fontFamily: 'Inter_700Bold',
     fontSize: fontSize.md,
     color: colors.textLight,
     letterSpacing: -0.2,
@@ -682,40 +1209,46 @@ const styles = StyleSheet.create({
   emptyState: { alignItems: 'center', paddingVertical: spacing.xl * 2, gap: spacing.sm },
   emptyIcon: { fontSize: 48, marginBottom: spacing.sm },
   emptyTitle: {
-    fontFamily: 'BarlowCondensed_800ExtraBold',
+    fontFamily: 'Inter_700Bold',
     fontSize: fontSize.xxl,
     color: colors.text,
     letterSpacing: -0.3,
   },
   emptyBody: {
-    fontFamily: 'Barlow_400Regular',
+    fontFamily: 'Inter_400Regular',
     fontSize: fontSize.md,
     color: colors.textMuted,
     textAlign: 'center',
     paddingHorizontal: spacing.xl,
   },
 
-  // Exercise card
-  exerciseCard: { backgroundColor: DARK_CARD, borderRadius: radius.lg, padding: spacing.md },
+  // Exercise card — white with border
+  exerciseCard: {
+    backgroundColor: colors.bgCard,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.md,
+  },
   cardHeader: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: spacing.sm },
   exerciseName: {
-    fontFamily: 'BarlowCondensed_800ExtraBold',
+    fontFamily: 'Inter_700Bold',
     fontSize: fontSize.lg,
-    color: colors.textLight,
+    color: colors.text,
     letterSpacing: -0.2,
     marginBottom: 4,
   },
   muscleTag: {
     alignSelf: 'flex-start',
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: colors.bgSecondary,
     borderRadius: radius.full,
     paddingHorizontal: spacing.sm,
     paddingVertical: 2,
   },
   muscleTagText: {
-    fontFamily: 'Barlow_600SemiBold',
+    fontFamily: 'Inter_600SemiBold',
     fontSize: fontSize.xs,
-    color: 'rgba(255,255,255,0.6)',
+    color: colors.textMuted,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
@@ -728,43 +1261,42 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.xs,
     marginBottom: spacing.sm,
-    backgroundColor: 'rgba(255,255,255,0.04)',
+    backgroundColor: colors.bgSecondary,
     borderRadius: radius.sm,
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
   },
   qfInput: {
     flex: 1,
     height: 34,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: colors.bgCard,
+    borderWidth: 1,
+    borderColor: colors.border,
     borderRadius: radius.sm,
     paddingHorizontal: spacing.xs,
-    fontFamily: 'Barlow_600SemiBold',
+    fontFamily: 'Inter_600SemiBold',
     fontSize: fontSize.sm,
-    color: colors.textLight,
+    color: colors.text,
     textAlign: 'center',
   },
   qfSep: {
-    fontFamily: 'Barlow_700Bold',
+    fontFamily: 'Inter_700Bold',
     fontSize: fontSize.sm,
-    color: 'rgba(255,255,255,0.3)',
+    color: colors.textMuted,
   },
   qfApplyBtn: {
-    backgroundColor: colors.accentRed,
+    backgroundColor: colors.bgDark,
     borderRadius: radius.sm,
     paddingHorizontal: spacing.sm,
     paddingVertical: 6,
   },
   qfApplyBtnDisabled: {
-    backgroundColor: 'rgba(255,55,48,0.3)',
+    opacity: 0.35,
   },
   qfApplyText: {
-    fontFamily: 'BarlowCondensed_700Bold',
+    fontFamily: 'Inter_600SemiBold',
     fontSize: fontSize.sm,
     color: colors.textLight,
-    letterSpacing: -0.1,
   },
 
   // Column labels
@@ -775,9 +1307,9 @@ const styles = StyleSheet.create({
     paddingLeft: 32 + spacing.sm,
   },
   colLabel: {
-    fontFamily: 'BarlowCondensed_700Bold',
+    fontFamily: 'Inter_600SemiBold',
     fontSize: fontSize.xs,
-    color: 'rgba(255,255,255,0.4)',
+    color: colors.textMuted,
     letterSpacing: 0.8,
   },
 
@@ -787,34 +1319,35 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: radius.full,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: colors.bgSecondary,
     alignItems: 'center',
     justifyContent: 'center',
   },
   setNum: {
-    fontFamily: 'BarlowCondensed_700Bold',
+    fontFamily: 'Inter_700Bold',
     fontSize: fontSize.md,
-    color: 'rgba(255,255,255,0.5)',
+    color: colors.text,
   },
   inputGroup: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   setInput: {
     flex: 1,
     height: 40,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: colors.bgSecondary,
     borderRadius: radius.sm,
     paddingHorizontal: spacing.sm,
-    fontFamily: 'Barlow_600SemiBold',
+    fontFamily: 'Inter_600SemiBold',
     fontSize: fontSize.md,
-    color: colors.textLight,
+    color: colors.text,
     textAlign: 'center',
   },
   inputSep: {
-    fontFamily: 'Barlow_700Bold',
+    fontFamily: 'Inter_700Bold',
     fontSize: fontSize.md,
-    color: 'rgba(255,255,255,0.3)',
+    color: colors.textMuted,
   },
   deleteSetBtn: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
-  deleteSetIcon: { fontSize: 12, color: 'rgba(255,255,255,0.3)' },
+  deleteSetIcon: { fontSize: 12, color: colors.textMuted },
+  cardioPaceText: { flex: 1, fontFamily: 'Inter_500Medium', fontSize: fontSize.xs, color: colors.textMuted, textAlign: 'center' },
 
   // Add set / superset
   addSetBtn: {
@@ -822,14 +1355,14 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
+    borderColor: colors.border,
     borderRadius: radius.sm,
     borderStyle: 'dashed',
   },
   addSetText: {
-    fontFamily: 'BarlowCondensed_700Bold',
+    fontFamily: 'Inter_600SemiBold',
     fontSize: fontSize.md,
-    color: colors.accentRed,
+    color: colors.textSecondary,
     letterSpacing: -0.2,
   },
   addSupersetBtn: {
@@ -838,9 +1371,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   addSupersetText: {
-    fontFamily: 'BarlowCondensed_700Bold',
+    fontFamily: 'Inter_600SemiBold',
     fontSize: fontSize.sm,
-    color: 'rgba(255,255,255,0.35)',
+    color: colors.textMuted,
     letterSpacing: -0.1,
   },
 
@@ -853,24 +1386,24 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xs,
   },
   ssBadge: {
-    backgroundColor: SS_RED,
+    backgroundColor: colors.bgDark,
     borderRadius: radius.full,
     paddingHorizontal: spacing.sm,
     paddingVertical: 3,
   },
   ssBadgeText: {
-    fontFamily: 'BarlowCondensed_800ExtraBold',
+    fontFamily: 'Inter_700Bold',
     fontSize: fontSize.xs,
     color: colors.textLight,
     letterSpacing: 1,
   },
   ssBreakText: {
-    fontFamily: 'Barlow_400Regular',
+    fontFamily: 'Inter_400Regular',
     fontSize: fontSize.xs,
     color: colors.textMuted,
   },
   ssBody: { flexDirection: 'row', gap: spacing.xs },
-  ssAccentBar: { width: 3, backgroundColor: SS_RED, borderRadius: radius.full },
+  ssAccentBar: { width: 3, backgroundColor: colors.bgDark, borderRadius: radius.full },
   // SS connector between stacked cards
   ssConnector: {
     flexDirection: 'row',
@@ -878,44 +1411,44 @@ const styles = StyleSheet.create({
     height: 20,
     paddingHorizontal: spacing.sm,
   },
-  ssConnectorLine: { flex: 1, height: 1, backgroundColor: 'rgba(255,55,48,0.25)' },
+  ssConnectorLine: { flex: 1, height: 1, backgroundColor: colors.border },
   ssConnectorPill: {
     paddingHorizontal: 6,
     paddingVertical: 2,
-    backgroundColor: 'rgba(255,55,48,0.12)',
+    backgroundColor: colors.bgSecondary,
     borderRadius: radius.full,
   },
   ssConnectorPillText: {
-    fontFamily: 'BarlowCondensed_700Bold',
+    fontFamily: 'Inter_700Bold',
     fontSize: fontSize.xs,
-    color: SS_RED,
+    color: colors.textSecondary,
     letterSpacing: 0.5,
   },
   ssAddBtn: {
     paddingVertical: spacing.sm,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255,55,48,0.3)',
+    borderColor: colors.border,
     borderRadius: radius.md,
     borderStyle: 'dashed',
   },
   ssAddText: {
-    fontFamily: 'BarlowCondensed_700Bold',
+    fontFamily: 'Inter_700Bold',
     fontSize: fontSize.md,
-    color: SS_RED,
+    color: colors.textSecondary,
     letterSpacing: -0.1,
   },
 
   // Add exercise CTA
   addExerciseBtn: {
-    backgroundColor: colors.text,
+    backgroundColor: colors.bgDark,
     borderRadius: radius.lg,
     paddingVertical: spacing.md,
     alignItems: 'center',
     marginTop: spacing.sm,
   },
   addExerciseText: {
-    fontFamily: 'BarlowCondensed_800ExtraBold',
+    fontFamily: 'Inter_700Bold',
     fontSize: fontSize.lg,
     color: colors.textLight,
     letterSpacing: -0.2,
@@ -923,7 +1456,280 @@ const styles = StyleSheet.create({
 })
 
 // ---------------------------------------------------------------------------
-// Session summary styles
+// RenameSheet styles
+// ---------------------------------------------------------------------------
+const rnStyles = StyleSheet.create({
+  backdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+  },
+  sheet: {
+    backgroundColor: colors.bg,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingTop: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingBottom: 40,
+  },
+  handle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: colors.border,
+    alignSelf: 'center',
+    marginBottom: spacing.md,
+  },
+  title: {
+    fontFamily: fonts.bold,
+    fontSize: fontSize.lg,
+    color: colors.text,
+    marginBottom: spacing.md,
+    letterSpacing: -0.2,
+  },
+  input: {
+    height: 50,
+    backgroundColor: colors.bgSecondary,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    fontFamily: fonts.semiBold,
+    fontSize: fontSize.lg,
+    color: colors.text,
+    marginBottom: spacing.md,
+  },
+  btnRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  cancelBtn: {
+    flex: 1,
+    height: 48,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cancelText: {
+    fontFamily: fonts.medium,
+    fontSize: fontSize.md,
+    color: colors.textSecondary,
+  },
+  doneBtn: {
+    flex: 1,
+    height: 48,
+    backgroundColor: colors.bgDark,
+    borderRadius: radius.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  doneText: {
+    fontFamily: fonts.bold,
+    fontSize: fontSize.md,
+    color: colors.textLight,
+  },
+})
+
+// ---------------------------------------------------------------------------
+// SaveSheet styles
+// ---------------------------------------------------------------------------
+const ssStyles = StyleSheet.create({
+  backdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  sheet: {
+    backgroundColor: colors.bg,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    maxHeight: '92%',
+  },
+  sheetContent: {
+    paddingTop: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingBottom: 40,
+  },
+  handle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: colors.border,
+    alignSelf: 'center',
+    marginBottom: spacing.md,
+  },
+  sheetTitle: {
+    fontFamily: fonts.bold,
+    fontSize: fontSize.xl,
+    color: colors.text,
+    letterSpacing: -0.3,
+    marginBottom: spacing.md,
+  },
+
+  // Editable name
+  nameInput: {
+    height: 54,
+    backgroundColor: colors.bgSecondary,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    fontFamily: fonts.bold,
+    fontSize: fontSize.lg,
+    color: colors.text,
+    marginBottom: spacing.md,
+    letterSpacing: -0.2,
+  },
+
+  // Stats row
+  statsRow: {
+    flexDirection: 'row',
+    backgroundColor: colors.bgSecondary,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingVertical: spacing.md,
+    marginBottom: spacing.md,
+  },
+  statItem: {
+    flex: 1,
+    alignItems: 'center',
+    position: 'relative',
+  },
+  statValue: {
+    fontFamily: fonts.bold,
+    fontSize: fontSize.xl,
+    color: colors.text,
+    letterSpacing: -0.3,
+    lineHeight: 26,
+  },
+  statLabel: {
+    fontFamily: fonts.regular,
+    fontSize: fontSize.xs,
+    color: colors.textMuted,
+    marginTop: 2,
+  },
+  statDivider: {
+    position: 'absolute',
+    right: 0,
+    top: '10%',
+    height: '80%',
+    width: 1,
+    backgroundColor: colors.border,
+  },
+
+  // Save CTA
+  saveBtn: {
+    backgroundColor: colors.bgDark,
+    borderRadius: radius.full,
+    height: 54,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.sm,
+  },
+  saveBtnText: {
+    fontFamily: fonts.bold,
+    fontSize: fontSize.md,
+    color: colors.textLight,
+    letterSpacing: -0.2,
+  },
+
+  // Keep going link
+  keepGoingBtn: {
+    alignItems: 'center',
+    paddingVertical: spacing.sm,
+  },
+  keepGoingText: {
+    fontFamily: fonts.medium,
+    fontSize: fontSize.md,
+    color: colors.textSecondary,
+  },
+
+  // Calories burned section
+  calsSection: {
+    backgroundColor: colors.bgSecondary,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    marginBottom: spacing.md,
+    gap: 2,
+  },
+  calsSectionTitle: {
+    fontFamily: fonts.semiBold,
+    fontSize: fontSize.xs,
+    color: colors.textMuted,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+    marginBottom: spacing.sm,
+  },
+  calsSectionOpt: {
+    fontFamily: fonts.regular,
+    fontSize: fontSize.xs,
+    color: colors.textMuted,
+    textTransform: 'none',
+    letterSpacing: 0,
+  },
+  calRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingVertical: 7,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  calOverrideRow: {
+    borderBottomWidth: 0,
+    paddingTop: spacing.sm,
+    marginTop: 4,
+  },
+  calRowLabel: {
+    flex: 1,
+    fontFamily: fonts.medium,
+    fontSize: fontSize.sm,
+    color: colors.text,
+  },
+  calInputWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  calInput: {
+    width: 64,
+    height: 34,
+    backgroundColor: colors.bgCard,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.sm,
+    fontFamily: fonts.semiBold,
+    fontSize: fontSize.md,
+    color: colors.text,
+    textAlign: 'center',
+  },
+  calUnit: {
+    fontFamily: fonts.regular,
+    fontSize: fontSize.xs,
+    color: colors.textMuted,
+    width: 22,
+  },
+  calOverrideHint: {
+    fontFamily: fonts.regular,
+    fontSize: fontSize.xs,
+    color: colors.textMuted,
+    marginTop: 1,
+  },
+  calsTotalPreview: {
+    fontFamily: fonts.semiBold,
+    fontSize: fontSize.xs,
+    color: colors.textSecondary,
+    textAlign: 'right',
+    paddingTop: spacing.xs,
+  },
+})
+
+// ---------------------------------------------------------------------------
+// Session summary styles — keep dark background, it stands out well
 // ---------------------------------------------------------------------------
 const summaryStyles = StyleSheet.create({
   container: {
@@ -939,14 +1745,14 @@ const summaryStyles = StyleSheet.create({
     paddingHorizontal: spacing.md,
   },
   barText: {
-    fontFamily: 'Barlow_400Regular',
+    fontFamily: 'Inter_400Regular',
     fontSize: fontSize.sm,
     color: 'rgba(255,255,255,0.6)',
   },
   barCount: {
-    fontFamily: 'BarlowCondensed_700Bold',
+    fontFamily: 'Inter_700Bold',
     fontSize: fontSize.md,
-    color: colors.accentRed,
+    color: colors.textLight,
   },
   barChevron: {
     fontSize: 11,
@@ -961,7 +1767,7 @@ const summaryStyles = StyleSheet.create({
     gap: spacing.sm,
   },
   emptyText: {
-    fontFamily: 'Barlow_400Regular',
+    fontFamily: 'Inter_400Regular',
     fontSize: fontSize.sm,
     color: 'rgba(255,255,255,0.3)',
     textAlign: 'center',
@@ -971,14 +1777,14 @@ const summaryStyles = StyleSheet.create({
     gap: 3,
   },
   exName: {
-    fontFamily: 'BarlowCondensed_700Bold',
+    fontFamily: 'Inter_700Bold',
     fontSize: fontSize.md,
     color: colors.textLight,
     letterSpacing: -0.1,
     marginBottom: 2,
   },
   setLine: {
-    fontFamily: 'Barlow_400Regular',
+    fontFamily: 'Inter_400Regular',
     fontSize: fontSize.sm,
     color: 'rgba(255,255,255,0.5)',
     paddingLeft: spacing.sm,

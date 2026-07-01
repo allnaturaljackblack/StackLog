@@ -106,17 +106,17 @@ export default function MealDetailScreen({ navigation, route }) {
           </View>
           <View style={styles.totalDivider} />
           <View style={styles.totalItem}>
-            <Text style={[styles.totalValue, { color: colors.accentRed }]}>{Math.round(totalProtein)}g</Text>
+            <Text style={styles.totalValue}>{Math.round(totalProtein)}g</Text>
             <Text style={styles.totalLabel}>protein</Text>
           </View>
           <View style={styles.totalDivider} />
           <View style={styles.totalItem}>
-            <Text style={[styles.totalValue, { color: colors.accentBlue }]}>{Math.round(totalCarbs)}g</Text>
+            <Text style={styles.totalValue}>{Math.round(totalCarbs)}g</Text>
             <Text style={styles.totalLabel}>carbs</Text>
           </View>
           <View style={styles.totalDivider} />
           <View style={styles.totalItem}>
-            <Text style={[styles.totalValue, { color: colors.warn }]}>{Math.round(totalFat)}g</Text>
+            <Text style={styles.totalValue}>{Math.round(totalFat)}g</Text>
             <Text style={styles.totalLabel}>fat</Text>
           </View>
         </View>
@@ -124,7 +124,7 @@ export default function MealDetailScreen({ navigation, route }) {
 
       {loading ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator color={colors.accentRed} />
+          <ActivityIndicator color={colors.text} />
         </View>
       ) : logs.length === 0 ? (
         <View style={styles.emptyState}>
@@ -134,7 +134,7 @@ export default function MealDetailScreen({ navigation, route }) {
             style={styles.emptyBtn}
             onPress={() => navigation.navigate('FoodSearch', { mealType, logDate, userId })}
           >
-            <Text style={styles.emptyBtnText}>+ ADD FOOD</Text>
+            <Text style={styles.emptyBtnText}>+ Add Food</Text>
           </TouchableOpacity>
         </View>
       ) : (
@@ -177,36 +177,36 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
 
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.lg, paddingTop: 56, paddingBottom: spacing.md, justifyContent: 'space-between' },
-  back: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.bgCard, alignItems: 'center', justifyContent: 'center' },
+  back: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.bgSecondary, alignItems: 'center', justifyContent: 'center' },
   backText: { fontSize: 18, color: colors.text },
   headerCenter: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   headerIcon: { fontSize: 20 },
-  headerTitle: { fontFamily: 'BarlowCondensed_900Black', fontSize: 24, color: colors.text, letterSpacing: -0.3 },
+  headerTitle: { fontFamily: 'Inter_700Bold', fontSize: 22, color: colors.text, letterSpacing: -0.3 },
   addBtn: { backgroundColor: colors.bgDark, borderRadius: radius.full, paddingHorizontal: spacing.md, paddingVertical: spacing.xs },
-  addBtnText: { fontFamily: 'BarlowCondensed_700Bold', fontSize: fontSize.sm, color: colors.textLight },
+  addBtnText: { fontFamily: 'Inter_600SemiBold', fontSize: fontSize.sm, color: colors.textLight },
 
-  totalsBar: { flexDirection: 'row', backgroundColor: colors.bgCard, marginHorizontal: spacing.lg, borderRadius: radius.lg, padding: spacing.md, marginBottom: spacing.md, alignItems: 'center', justifyContent: 'space-around' },
+  totalsBar: { flexDirection: 'row', backgroundColor: colors.bgSecondary, marginHorizontal: spacing.lg, borderRadius: radius.lg, padding: spacing.md, marginBottom: spacing.md, alignItems: 'center', justifyContent: 'space-around', borderWidth: 1, borderColor: colors.border },
   totalItem: { alignItems: 'center' },
-  totalValue: { fontFamily: 'BarlowCondensed_800ExtraBold', fontSize: 20, color: colors.text, letterSpacing: -0.5 },
-  totalLabel: { fontFamily: 'Barlow_400Regular', fontSize: 10, color: colors.textMuted },
+  totalValue: { fontFamily: 'Inter_700Bold', fontSize: 18, color: colors.text, letterSpacing: -0.3 },
+  totalLabel: { fontFamily: 'Inter_400Regular', fontSize: 10, color: colors.textMuted, marginTop: 2 },
   totalDivider: { width: 1, height: 28, backgroundColor: colors.border },
 
   loadingContainer: { flex: 1, alignItems: 'center', justifyContent: 'center' },
 
   emptyState: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.sm, padding: spacing.lg },
-  emptyTitle: { fontFamily: 'BarlowCondensed_800ExtraBold', fontSize: 22, color: colors.text },
-  emptyText: { fontFamily: 'Barlow_400Regular', fontSize: fontSize.sm, color: colors.textMuted, textAlign: 'center' },
-  emptyBtn: { backgroundColor: colors.bgDark, borderRadius: radius.md, paddingHorizontal: spacing.xl, paddingVertical: spacing.md, marginTop: spacing.sm },
-  emptyBtnText: { fontFamily: 'BarlowCondensed_800ExtraBold', fontSize: fontSize.md, color: colors.textLight, letterSpacing: 0.5 },
+  emptyTitle: { fontFamily: 'Inter_700Bold', fontSize: 22, color: colors.text },
+  emptyText: { fontFamily: 'Inter_400Regular', fontSize: fontSize.sm, color: colors.textMuted, textAlign: 'center' },
+  emptyBtn: { backgroundColor: colors.bgDark, borderRadius: radius.full, paddingHorizontal: spacing.xl, paddingVertical: spacing.md, marginTop: spacing.sm },
+  emptyBtnText: { fontFamily: 'Inter_700Bold', fontSize: fontSize.md, color: colors.textLight, letterSpacing: -0.2 },
 
   list: { paddingHorizontal: spacing.lg, paddingBottom: 40 },
-  logRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.bgCard, borderRadius: radius.lg, padding: spacing.md, marginBottom: spacing.sm, gap: spacing.sm },
+  logRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.bgCard, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, padding: spacing.md, marginBottom: spacing.sm, gap: spacing.sm },
   logInfo: { flex: 1 },
-  logName: { fontFamily: 'Barlow_600SemiBold', fontSize: fontSize.md, color: colors.text },
-  logMeta: { fontFamily: 'Barlow_400Regular', fontSize: fontSize.sm, color: colors.textMuted, marginTop: 2 },
+  logName: { fontFamily: 'Inter_600SemiBold', fontSize: fontSize.md, color: colors.text },
+  logMeta: { fontFamily: 'Inter_400Regular', fontSize: fontSize.sm, color: colors.textMuted, marginTop: 2 },
   logRight: { alignItems: 'flex-end' },
-  logCal: { fontFamily: 'BarlowCondensed_800ExtraBold', fontSize: 18, color: colors.text },
-  logCalLabel: { fontFamily: 'Barlow_400Regular', fontSize: 10, color: colors.textMuted },
-  deleteBtn: { width: 28, height: 28, borderRadius: 14, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.border },
+  logCal: { fontFamily: 'Inter_700Bold', fontSize: 18, color: colors.text },
+  logCalLabel: { fontFamily: 'Inter_400Regular', fontSize: 10, color: colors.textMuted },
+  deleteBtn: { width: 28, height: 28, borderRadius: 14, backgroundColor: colors.bgSecondary, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.border },
   deleteBtnText: { fontSize: 11, color: colors.textMuted },
 })

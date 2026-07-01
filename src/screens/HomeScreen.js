@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import {
   View, Text, ScrollView, TouchableOpacity,
   StyleSheet, RefreshControl
 } from 'react-native'
+import { useFocusEffect } from '@react-navigation/native'
 import { useProfile } from '../hooks/useProfile'
 import { useTodayLogs } from '../hooks/useTodayLogs'
 import { colors, spacing, radius, fontSize } from '../utils/theme'
@@ -140,6 +141,9 @@ export default function HomeScreen({ navigation }) {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0])
   const { profile, loading: profileLoading } = useProfile()
   const { totals, mealGroups, workouts, totalWaterMl, loading: logsLoading, refresh } = useTodayLogs(selectedDate)
+
+  // Refresh data every time the home screen comes into focus (e.g. after logging a workout)
+  useFocusEffect(useCallback(() => { refresh() }, [selectedDate]))
 
   const isLoading = profileLoading || logsLoading
 

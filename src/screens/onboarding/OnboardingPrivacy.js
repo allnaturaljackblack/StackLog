@@ -54,7 +54,7 @@ export default function OnboardingPrivacy({ navigation, route }) {
         onPress={() => navigation.navigate('FirstMeal', { data: { ...existing, visibility } })}
         activeOpacity={0.85}
       >
-        <Text style={styles.buttonText}>CONTINUE</Text>
+        <Text style={styles.buttonText}>Continue</Text>
       </TouchableOpacity>
     </ScrollView>
   )
@@ -64,24 +64,24 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
   inner: { padding: spacing.lg, paddingTop: 60, flexGrow: 1 },
   back: { marginBottom: spacing.lg },
-  backText: { fontFamily: 'Barlow_600SemiBold', fontSize: fontSize.md, color: colors.textMuted },
-  step: { fontFamily: 'Barlow_500Medium', fontSize: fontSize.xs, color: colors.textMuted, letterSpacing: 1, textTransform: 'uppercase', marginBottom: spacing.sm },
-  title: { fontFamily: 'BarlowCondensed_900Black', fontSize: 44, color: colors.text, letterSpacing: -1, lineHeight: 48, marginBottom: spacing.sm },
-  sub: { fontFamily: 'Barlow_400Regular', fontSize: fontSize.sm, color: colors.textMuted, marginBottom: spacing.xl },
+  backText: { fontFamily: 'Inter_600SemiBold', fontSize: fontSize.md, color: colors.textMuted },
+  step: { fontFamily: 'Inter_500Medium', fontSize: fontSize.xs, color: colors.textMuted, letterSpacing: 1, textTransform: 'uppercase', marginBottom: spacing.sm },
+  title: { fontFamily: 'Inter_700Bold', fontSize: 44, color: colors.text, letterSpacing: -1, lineHeight: 48, marginBottom: spacing.sm },
+  sub: { fontFamily: 'Inter_400Regular', fontSize: fontSize.sm, color: colors.textMuted, marginBottom: spacing.xl },
   options: { gap: spacing.sm, marginBottom: spacing.xl },
-  option: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.bgCard, borderRadius: radius.lg, padding: spacing.md, borderWidth: 2, borderColor: colors.border, gap: spacing.md },
-  optionActive: { borderColor: colors.accentRed, backgroundColor: '#FFF8F8' },
+  option: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.bgSecondary, borderRadius: radius.lg, padding: spacing.md, borderWidth: 2, borderColor: colors.border, gap: spacing.md },
+  optionActive: { borderColor: colors.bgDark, backgroundColor: colors.bgSecondary },
   optionEmoji: { fontSize: 24 },
   optionText: { flex: 1 },
   optionLabelRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: 2 },
-  optionLabel: { fontFamily: 'BarlowCondensed_800ExtraBold', fontSize: fontSize.lg, color: colors.text, letterSpacing: -0.3 },
-  optionLabelActive: { color: colors.accentRed },
-  optionDesc: { fontFamily: 'Barlow_400Regular', fontSize: fontSize.xs, color: colors.textMuted },
+  optionLabel: { fontFamily: 'Inter_700Bold', fontSize: fontSize.lg, color: colors.text, letterSpacing: -0.3 },
+  optionLabelActive: { color: colors.bgDark },
+  optionDesc: { fontFamily: 'Inter_400Regular', fontSize: fontSize.xs, color: colors.textMuted },
   badge: { backgroundColor: colors.accent, borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2 },
-  badgeText: { fontFamily: 'Barlow_700Bold', fontSize: 9, color: colors.text, letterSpacing: 0.5 },
+  badgeText: { fontFamily: 'Inter_700Bold', fontSize: 9, color: colors.text, letterSpacing: 0.5 },
   radio: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
-  radioActive: { borderColor: colors.accentRed },
-  radioDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.accentRed },
-  button: { backgroundColor: colors.accentRed, borderRadius: radius.md, padding: spacing.md, alignItems: 'center' },
-  buttonText: { fontFamily: 'BarlowCondensed_800ExtraBold', fontSize: fontSize.lg, color: colors.textLight, letterSpacing: 1 },
+  radioActive: { borderColor: colors.bgDark },
+  radioDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.bgDark },
+  button: { backgroundColor: colors.bgDark, borderRadius: radius.full, padding: spacing.md, alignItems: 'center' },
+  buttonText: { fontFamily: 'Inter_700Bold', fontSize: fontSize.lg, color: colors.textLight, letterSpacing: 1 },
 })
