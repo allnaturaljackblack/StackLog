@@ -142,7 +142,7 @@ export default function FoodDetailScreen({ navigation, route }) {
           <Text style={styles.quantityX}>×</Text>
           <View style={styles.servingInfo}>
             {loadingServings ? (
-              <ActivityIndicator size="small" color={colors.accentRed} />
+              <ActivityIndicator size="small" color={colors.textMuted} />
             ) : (
               <>
                 <Text style={styles.servingDisplay}>{selectedServing?.display || 'g'}</Text>
@@ -187,19 +187,19 @@ export default function FoodDetailScreen({ navigation, route }) {
         </View>
         <View style={styles.macroRow}>
           <View style={styles.macroItem}>
-            <Text style={[styles.macroValue, { color: colors.accentRed }]}>
+            <Text style={styles.macroValue}>
               {nutrition.protein_g}<Text style={styles.macroUnit}>g</Text>
             </Text>
             <Text style={styles.macroLabel}>Protein</Text>
           </View>
           <View style={styles.macroItem}>
-            <Text style={[styles.macroValue, { color: colors.accentBlue }]}>
+            <Text style={styles.macroValue}>
               {nutrition.carbs_g}<Text style={styles.macroUnit}>g</Text>
             </Text>
             <Text style={styles.macroLabel}>Carbs</Text>
           </View>
           <View style={styles.macroItem}>
-            <Text style={[styles.macroValue, { color: colors.warn }]}>
+            <Text style={styles.macroValue}>
               {nutrition.fat_g}<Text style={styles.macroUnit}>g</Text>
             </Text>
             <Text style={styles.macroLabel}>Fat</Text>
@@ -257,7 +257,7 @@ export default function FoodDetailScreen({ navigation, route }) {
         {saving
           ? <ActivityIndicator color={colors.textLight} />
           : <Text style={styles.logButtonText}>
-              {route.params?.existingLog ? 'SAVE CHANGES' : `ADD TO ${mealType.toUpperCase()}`}
+              {route.params?.existingLog ? 'Save Changes' : `Add to ${mealType.charAt(0).toUpperCase() + mealType.slice(1)}`}
             </Text>
         }
       </TouchableOpacity>
@@ -270,54 +270,54 @@ const styles = StyleSheet.create({
   content: { padding: spacing.lg, paddingTop: 56, paddingBottom: 40 },
 
   header: { marginBottom: spacing.md },
-  back: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.bgCard, alignItems: 'center', justifyContent: 'center' },
+  back: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.bgSecondary, alignItems: 'center', justifyContent: 'center' },
   backText: { fontSize: 18, color: colors.text },
 
   foodHeader: { marginBottom: spacing.lg },
-  foodName: { fontFamily: 'BarlowCondensed_900Black', fontSize: 32, color: colors.text, letterSpacing: -0.5, lineHeight: 36 },
-  foodBrand: { fontFamily: 'Barlow_400Regular', fontSize: fontSize.md, color: colors.textMuted, marginTop: 4 },
+  foodName: { fontFamily: 'Inter_700Bold', fontSize: 28, color: colors.text, letterSpacing: -0.5, lineHeight: 34 },
+  foodBrand: { fontFamily: 'Inter_400Regular', fontSize: fontSize.md, color: colors.textMuted, marginTop: 4 },
 
   section: { marginBottom: spacing.lg },
-  sectionLabel: { fontFamily: 'Barlow_700Bold', fontSize: fontSize.xs, color: colors.textMuted, letterSpacing: 1, marginBottom: spacing.sm },
+  sectionLabel: { fontFamily: 'Inter_600SemiBold', fontSize: fontSize.xs, color: colors.textMuted, letterSpacing: 0.8, marginBottom: spacing.sm },
 
   quantityRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.sm },
-  quantityInput: { width: 90, backgroundColor: colors.bgCard, borderRadius: radius.md, padding: spacing.md, fontFamily: 'BarlowCondensed_800ExtraBold', fontSize: 28, color: colors.text, borderWidth: 1, borderColor: colors.border, textAlign: 'center' },
-  quantityX: { fontFamily: 'Barlow_400Regular', fontSize: 20, color: colors.textMuted },
+  quantityInput: { width: 90, backgroundColor: colors.bgSecondary, borderRadius: radius.md, padding: spacing.md, fontFamily: 'Inter_700Bold', fontSize: 28, color: colors.text, borderWidth: 1, borderColor: colors.border, textAlign: 'center' },
+  quantityX: { fontFamily: 'Inter_400Regular', fontSize: 20, color: colors.textMuted },
   servingInfo: { flex: 1 },
-  servingDisplay: { fontFamily: 'BarlowCondensed_800ExtraBold', fontSize: 22, color: colors.text, letterSpacing: -0.3 },
-  gramsDisplay: { fontFamily: 'Barlow_400Regular', fontSize: fontSize.sm, color: colors.textMuted },
+  servingDisplay: { fontFamily: 'Inter_700Bold', fontSize: 22, color: colors.text, letterSpacing: -0.3 },
+  gramsDisplay: { fontFamily: 'Inter_400Regular', fontSize: fontSize.sm, color: colors.textMuted },
 
   servingScroll: { marginTop: spacing.xs },
-  servingBtn: { paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: radius.md, backgroundColor: colors.bgCard, borderWidth: 1, borderColor: colors.border, marginRight: spacing.sm, alignItems: 'center' },
+  servingBtn: { paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: radius.md, backgroundColor: colors.bgSecondary, borderWidth: 1, borderColor: colors.border, marginRight: spacing.sm, alignItems: 'center' },
   servingBtnActive: { backgroundColor: colors.bgDark, borderColor: colors.bgDark },
-  servingBtnText: { fontFamily: 'Barlow_600SemiBold', fontSize: fontSize.sm, color: colors.textMuted },
+  servingBtnText: { fontFamily: 'Inter_600SemiBold', fontSize: fontSize.sm, color: colors.textMuted },
   servingBtnTextActive: { color: colors.textLight },
-  servingBtnGrams: { fontFamily: 'Barlow_400Regular', fontSize: 10, color: colors.textMuted, marginTop: 2 },
+  servingBtnGrams: { fontFamily: 'Inter_400Regular', fontSize: 10, color: colors.textMuted, marginTop: 2 },
   servingBtnGramsActive: { color: '#888' },
 
-  nutritionCard: { backgroundColor: colors.bgCard, borderRadius: radius.xl, padding: spacing.lg, marginBottom: spacing.lg, borderWidth: 1, borderColor: colors.border },
+  nutritionCard: { backgroundColor: colors.bgSecondary, borderRadius: radius.xl, padding: spacing.lg, marginBottom: spacing.lg, borderWidth: 1, borderColor: colors.border },
   nutritionHero: { alignItems: 'center', marginBottom: spacing.md },
-  nutritionCalories: { fontFamily: 'BarlowCondensed_900Black', fontSize: 64, color: colors.text, letterSpacing: -2, lineHeight: 68 },
-  nutritionCalLabel: { fontFamily: 'Barlow_400Regular', fontSize: fontSize.sm, color: colors.textMuted, marginTop: -4 },
+  nutritionCalories: { fontFamily: 'Inter_700Bold', fontSize: 60, color: colors.text, letterSpacing: -2, lineHeight: 64 },
+  nutritionCalLabel: { fontFamily: 'Inter_400Regular', fontSize: fontSize.sm, color: colors.textMuted, marginTop: -4 },
   macroRow: { flexDirection: 'row', justifyContent: 'space-around', paddingVertical: spacing.sm, borderTopWidth: 1, borderTopColor: colors.border },
   macroItem: { alignItems: 'center' },
-  macroValue: { fontFamily: 'BarlowCondensed_800ExtraBold', fontSize: 24, letterSpacing: -0.5 },
-  macroUnit: { fontSize: 14, fontFamily: 'BarlowCondensed_600SemiBold' },
-  macroLabel: { fontFamily: 'Barlow_400Regular', fontSize: fontSize.xs, color: colors.textMuted, marginTop: 2 },
+  macroValue: { fontFamily: 'Inter_700Bold', fontSize: 22, color: colors.text, letterSpacing: -0.5 },
+  macroUnit: { fontSize: 13, fontFamily: 'Inter_600SemiBold' },
+  macroLabel: { fontFamily: 'Inter_400Regular', fontSize: fontSize.xs, color: colors.textMuted, marginTop: 2 },
   expandBtn: { marginTop: spacing.md, alignItems: 'center' },
-  expandBtnText: { fontFamily: 'Barlow_500Medium', fontSize: fontSize.sm, color: colors.textMuted },
+  expandBtnText: { fontFamily: 'Inter_500Medium', fontSize: fontSize.sm, color: colors.textMuted },
   fullNutrition: { marginTop: spacing.md, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: spacing.md, gap: spacing.sm },
   nutritionRow: { flexDirection: 'row', justifyContent: 'space-between' },
-  nutritionLabel: { fontFamily: 'Barlow_400Regular', fontSize: fontSize.sm, color: colors.textMuted },
-  nutritionValue: { fontFamily: 'Barlow_600SemiBold', fontSize: fontSize.sm, color: colors.text },
+  nutritionLabel: { fontFamily: 'Inter_400Regular', fontSize: fontSize.sm, color: colors.textMuted },
+  nutritionValue: { fontFamily: 'Inter_600SemiBold', fontSize: fontSize.sm, color: colors.text },
 
   mealPicker: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
-  mealBtn: { paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: radius.full, backgroundColor: colors.bgCard, borderWidth: 1, borderColor: colors.border },
+  mealBtn: { paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: radius.full, backgroundColor: colors.bgSecondary, borderWidth: 1, borderColor: colors.border },
   mealBtnActive: { backgroundColor: colors.bgDark, borderColor: colors.bgDark },
-  mealBtnText: { fontFamily: 'Barlow_600SemiBold', fontSize: fontSize.sm, color: colors.textMuted },
+  mealBtnText: { fontFamily: 'Inter_600SemiBold', fontSize: fontSize.sm, color: colors.textMuted },
   mealBtnTextActive: { color: colors.textLight },
 
-  logButton: { backgroundColor: colors.accentRed, borderRadius: radius.md, padding: spacing.md, alignItems: 'center', marginTop: spacing.sm },
+  logButton: { backgroundColor: colors.bgDark, borderRadius: radius.full, paddingVertical: spacing.md, alignItems: 'center', marginTop: spacing.sm },
   logButtonDisabled: { opacity: 0.6 },
-  logButtonText: { fontFamily: 'BarlowCondensed_800ExtraBold', fontSize: fontSize.lg, color: colors.textLight, letterSpacing: 1 },
+  logButtonText: { fontFamily: 'Inter_700Bold', fontSize: fontSize.md, color: colors.textLight, letterSpacing: -0.2 },
 })
